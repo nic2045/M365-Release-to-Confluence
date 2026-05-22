@@ -19,7 +19,7 @@ def _require(name: str) -> str:
     return value
 
 
-@dataclass(slots=True)
+@dataclass
 class GraphConfig:
     tenant_id: str
     client_id: str
@@ -38,7 +38,7 @@ class GraphConfig:
         )
 
 
-@dataclass(slots=True)
+@dataclass
 class RoadmapConfig:
     api_url: str = "https://www.microsoft.com/releasecommunications/api/v1/m365"
 
@@ -52,7 +52,7 @@ class RoadmapConfig:
         )
 
 
-@dataclass(slots=True)
+@dataclass
 class AIConfig:
     provider: str  # "anthropic" | "azure_openai" | "local"
     output_language: str = "de"
@@ -91,7 +91,7 @@ class AIConfig:
         )
 
 
-@dataclass(slots=True)
+@dataclass
 class ConfluenceConfig:
     base_url: str  # e.g. https://confluence.example.com
     token: str  # Personal Access Token (Bearer)
@@ -108,7 +108,7 @@ class ConfluenceConfig:
         )
 
 
-@dataclass(slots=True)
+@dataclass
 class Config:
     graph: GraphConfig | None
     roadmap: RoadmapConfig | None

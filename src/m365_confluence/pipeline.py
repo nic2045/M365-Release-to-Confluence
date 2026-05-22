@@ -15,7 +15,7 @@ from m365_confluence.sources import MessageCenterSource, RoadmapSource, aggregat
 log = logging.getLogger("m365_confluence")
 
 
-@dataclass(slots=True)
+@dataclass
 class RunResult:
     fetched: int
     processed: int

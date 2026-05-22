@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 
-@dataclass(slots=True)
+@dataclass
 class ChangeItem:
     """A single M365 change or upcoming rollout, normalised across sources."""
 
@@ -26,7 +26,7 @@ class ChangeItem:
         return f"{self.source}:{self.id}"
 
 
-@dataclass(slots=True)
+@dataclass
 class ProcessedItem:
     """An LLM-processed change, ready to publish to Confluence."""
 
