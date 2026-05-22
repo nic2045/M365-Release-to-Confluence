@@ -6,8 +6,14 @@ import json
 import logging
 
 from m365_confluence.ai.base import AIProvider
-from m365_confluence.ai.prompts import build_system_prompt, build_user_prompt, parse_response
+from m365_confluence.ai.prompts import (
+    build_system_prompt,
+    build_user_prompt,
+    parse_response,
+    render_storage,
+)
 from m365_confluence.models import ChangeItem, ProcessedItem
+from m365_confluence.quarters import derive_quarter
 
 log = logging.getLogger("m365_confluence")
 
@@ -21,11 +27,17 @@ _REPAIR_SYSTEM = (
 
 def process_item(provider: AIProvider, item: ChangeItem, language: str = "de") -> ProcessedItem:
     system = build_system_prompt(language)
-    prompt = build_user_prompt(item)
+    hint = derive_quarter(item)
+    prompt = build_user_prompt(item, hint)
     raw = provider.complete(system, prompt)
     try:
-        return parse_response(raw, item)
+        processed = parse_response(raw, item)
     except (json.JSONDecodeError, ValueError):
         log.warning("Invalid JSON for %s, attempting repair", item.dedupe_key())
         repaired = provider.complete(_REPAIR_SYSTEM, raw)
-        return parse_response(repaired, item)
+        processed = parse_response(repaired, item)
+
+    if not processed.target_quarter and hint:
+        processed.target_quarter = hint
+        processed.confluence_body = render_storage(processed)
+    return processed

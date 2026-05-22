@@ -36,5 +36,10 @@ class ProcessedItem:
     audience: str
     action_items: list[str] = field(default_factory=list)
     recommended_action: str = ""
+    target_quarter: str = ""  # e.g. "Q3 2026"; "" if unknown
+    decision: str = ""  # Activate | Deactivate | Communicate | Monitor
+    decision_rationale: str = ""
+    slipped: bool = False  # target quarter moved later than previously seen
+    previous_quarter: str = ""  # the earlier target quarter, when slipped
     confluence_title: str = ""
     confluence_body: str = ""  # Confluence storage-format (XHTML)
