@@ -77,6 +77,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the local state file used for skip/slip tracking.",
     )
     parser.add_argument(
+        "--changelog-file",
+        default="m365_changelog.json",
+        help="Path to the local changelog file (drives the Changelog page).",
+    )
+    parser.add_argument(
         "--title-prefix",
         default="[M365] ",
         help="Prefix for generated Confluence page titles.",
@@ -145,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
             force=args.force,
             title_prefix=args.title_prefix,
             state_file=args.state_file,
+            changelog_file=args.changelog_file,
         )
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
@@ -153,8 +159,9 @@ def main(argv: list[str] | None = None) -> int:
     mode = "dry-run (nothing published)" if args.dry_run else f"published {result.published}"
     print(
         f"Done. fetched={result.fetched} processed={result.processed} "
-        f"unchanged={result.unchanged} skipped={result.skipped} "
-        f"slipped={result.slipped} dashboards={result.dashboards} ({mode}).",
+        f"new={result.new} changed={result.changed} unchanged={result.unchanged} "
+        f"skipped={result.skipped} slipped={result.slipped} "
+        f"dashboards={result.dashboards} ({mode}).",
         file=sys.stderr,
     )
     for title in result.titles:

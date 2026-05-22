@@ -10,6 +10,7 @@ from __future__ import annotations
 import html
 import json
 
+from m365_confluence.confluence_macros import decision_badge
 from m365_confluence.models import ChangeItem, ProcessedItem
 
 STANDARDS = """\
@@ -160,7 +161,6 @@ def render_storage(item: ProcessedItem) -> str:
             ("Reference ID", src.id),
             ("Status", src.status),
             ("Target quarter", item.target_quarter),
-            ("Decision", item.decision),
             ("Products", ", ".join(src.products)),
             ("Audience", item.audience),
             ("Act by", src.act_by.date().isoformat() if src.act_by else ""),
@@ -180,7 +180,7 @@ def render_storage(item: ProcessedItem) -> str:
     decision = ""
     if item.decision:
         rationale = f" {esc(item.decision_rationale)}" if item.decision_rationale else ""
-        decision = f"<h2>Decision</h2><p><strong>{esc(item.decision)}</strong>.{rationale}</p>"
+        decision = f"<h2>Decision</h2><p>{decision_badge(item.decision)}{rationale}</p>"
 
     actions = ""
     if item.action_items:

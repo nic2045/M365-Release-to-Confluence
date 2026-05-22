@@ -149,6 +149,7 @@ activemq-data/
 
 # M365-to-Confluence local run state
 m365_state.json
+m365_changelog.json
 
 # Environments
 .env

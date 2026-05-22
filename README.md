@@ -61,6 +61,7 @@ m365-to-confluence --source roadmap --limit 10
 | `--category NAME` | Only items in this MC category (repeatable, e.g. `planForChange`). |
 | `--force` | Reprocess everything, ignoring the unchanged-item cache. |
 | `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |
+| `--changelog-file PATH` | Local changelog file driving the Changelog page (default `m365_changelog.json`). |
 | `--title-prefix` | Prefix for generated page titles (default `[M365] `). |
 | `--dry-run` | Process but do not write to Confluence (and do not save state). |
 | `-v` | Debug logging for this tool. |
@@ -75,6 +76,8 @@ m365-to-confluence --source roadmap --limit 10
 - When an item's target quarter moves later than last seen, it is flagged as a **slip**
   (warning banner on the page; marked on the dashboard).
 - A **per-quarter dashboard page** is created/updated listing all features of that quarter.
+- The decision shows as a **coloured status badge** (Activate=green, Communicate=blue, Monitor=yellow, Deactivate=red); slips get a red badge.
+- A **Changelog page** records each run's new/changed/slipped counts.
 
 ## Saving tokens
 

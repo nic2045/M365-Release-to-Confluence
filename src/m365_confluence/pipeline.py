@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 from m365_confluence.ai import build_provider, process_item
 from m365_confluence.ai.prompts import render_storage
+from m365_confluence.changelog import ChangelogStore, render_changelog_body
 from m365_confluence.config import Config
 from m365_confluence.confluence import ConfluenceClient
 from m365_confluence.filters import apply_filters
@@ -29,6 +30,8 @@ class RunResult:
     skipped: int
     unchanged: int
     slipped: int
+    new: int
+    changed: int
     dashboards: int
     titles: list[str] = field(default_factory=list)
 
@@ -67,6 +70,7 @@ def run(
     force: bool = False,
     title_prefix: str = "[M365] ",
     state_file: str = "m365_state.json",
+    changelog_file: str = "m365_changelog.json",
 ) -> RunResult:
     since = None
     if since_days is not None:
@@ -95,9 +99,12 @@ def run(
     skipped = 0
     unchanged = 0
     slipped = 0
+    new_count = 0
+    changed_count = 0
     total = len(items)
     for index, item in enumerate(items, start=1):
         key = item.dedupe_key()
+        previous = state.get(key)
         if not force and state.is_unchanged(item):
             log.info("[%d/%d] Unchanged, skipping %s", index, total, key)
             state.touch(key)
@@ -113,7 +120,10 @@ def run(
             skipped += 1
             continue
 
-        previous = state.get(key)
+        if previous is None:
+            new_count += 1
+        else:
+            changed_count += 1
         _detect_slip(result, previous.target_quarter if previous else "")
         if result.slipped:
             slipped += 1
@@ -152,6 +162,17 @@ def run(
 
     dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run)
 
+    _update_changelog(
+        changelog_file,
+        confluence,
+        title_prefix,
+        dry_run,
+        processed=len(processed),
+        new=new_count,
+        changed=changed_count,
+        slipped=slipped,
+    )
+
     if not dry_run:
         state.save()
         log.info("State saved to %s", state_file)
@@ -163,9 +184,41 @@ def run(
         skipped=skipped,
         unchanged=unchanged,
         slipped=slipped,
+        new=new_count,
+        changed=changed_count,
         dashboards=dashboards,
         titles=[p.confluence_title for p in processed],
     )
+
+
+def _update_changelog(
+    changelog_file: str,
+    confluence,
+    title_prefix: str,
+    dry_run: bool,
+    *,
+    processed: int,
+    new: int,
+    changed: int,
+    slipped: int,
+) -> None:
+    if processed == 0:
+        log.info("No changes this run; changelog not extended")
+        return
+    store = ChangelogStore(changelog_file).load()
+    entry = store.add(processed=processed, new=new, changed=changed, slipped=slipped)
+    log.info("Changelog: %s", entry.summary)
+    body = render_changelog_body(store.entries())
+    title = f"{title_prefix}Changelog"
+    if dry_run or confluence is None:
+        log.info("Changelog (dry-run): %s", title)
+        return
+    try:
+        confluence.upsert_page(title, body)
+        store.save()
+        log.info("Changelog published: %s", title)
+    except Exception:
+        log.exception("Changelog write failed: %s", title)
 
 
 def _publish_dashboards(state, confluence, title_prefix: str, dry_run: bool) -> int:

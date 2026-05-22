@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 
+from m365_confluence.confluence_macros import decision_badge, slip_badge
 from m365_confluence.quarters import UNSCHEDULED, quarter_key
 from m365_confluence.state import ItemState
 
@@ -35,14 +36,14 @@ def build_dashboard_body(quarter: str, items: list[ItemState]) -> str:
         title_cell = (
             _page_link(state.confluence_title) if state.confluence_title else _esc(state.title)
         )
-        slip = "⚠ verschoben" if state.slipped else ""
+        slip = slip_badge() if state.slipped else ""
         rows.append(
             "<tr>"
             f"<td>{title_cell}</td>"
             f"<td>{_esc(', '.join(state.products))}</td>"
             f"<td>{_esc(state.status)}</td>"
-            f"<td>{_esc(state.decision)}</td>"
-            f"<td>{_esc(slip)}</td>"
+            f"<td>{decision_badge(state.decision)}</td>"
+            f"<td>{slip}</td>"
             "</tr>"
         )
 
