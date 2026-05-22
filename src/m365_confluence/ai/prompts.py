@@ -77,8 +77,14 @@ Source URL: {url}
 """
 
 
-def build_system_prompt(language: str) -> str:
-    return STANDARDS.format(language=language)
+def build_system_prompt(language: str, org_context: str = "") -> str:
+    prompt = STANDARDS.format(language=language)
+    if org_context:
+        prompt += (
+            "\nOrganisation context (use it to tailor the decision and impact "
+            "to this environment):\n" + org_context + "\n"
+        )
+    return prompt
 
 
 def build_user_prompt(item: ChangeItem, quarter_hint: str = "") -> str:

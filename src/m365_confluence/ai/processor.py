@@ -25,8 +25,13 @@ _REPAIR_SYSTEM = (
 )
 
 
-def process_item(provider: AIProvider, item: ChangeItem, language: str = "de") -> ProcessedItem:
-    system = build_system_prompt(language)
+def process_item(
+    provider: AIProvider,
+    item: ChangeItem,
+    language: str = "de",
+    org_context: str = "",
+) -> ProcessedItem:
+    system = build_system_prompt(language, org_context)
     hint = derive_quarter(item)
     prompt = build_user_prompt(item, hint)
     raw = provider.complete(system, prompt)

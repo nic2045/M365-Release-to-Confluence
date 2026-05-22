@@ -147,6 +147,9 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+# M365-to-Confluence local run state
+m365_state.json
+
 # Environments
 .env
 .envrc

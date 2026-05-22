@@ -37,6 +37,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum number of items to process.",
     )
     parser.add_argument(
+        "--quarter",
+        default=None,
+        help='Only items detected for this target quarter, e.g. "Q3 2026".',
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Reprocess all items, even unchanged ones (ignores the state cache).",
+    )
+    parser.add_argument(
+        "--state-file",
+        default="m365_state.json",
+        help="Path to the local state file used for skip/slip tracking.",
+    )
+    parser.add_argument(
         "--title-prefix",
         default="[M365] ",
         help="Prefix for generated Confluence page titles.",
@@ -96,8 +111,11 @@ def main(argv: list[str] | None = None) -> int:
             config,
             since_days=args.since_days,
             limit=args.limit,
+            quarter=args.quarter,
             dry_run=args.dry_run,
+            force=args.force,
             title_prefix=args.title_prefix,
+            state_file=args.state_file,
         )
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
@@ -106,7 +124,8 @@ def main(argv: list[str] | None = None) -> int:
     mode = "dry-run (nothing published)" if args.dry_run else f"published {result.published}"
     print(
         f"Done. fetched={result.fetched} processed={result.processed} "
-        f"skipped={result.skipped} ({mode}).",
+        f"unchanged={result.unchanged} skipped={result.skipped} "
+        f"slipped={result.slipped} dashboards={result.dashboards} ({mode}).",
         file=sys.stderr,
     )
     for title in result.titles:

@@ -53,17 +53,38 @@ m365-to-confluence --source roadmap --limit 10
 | --- | --- |
 | `--source {both,message-center,roadmap}` | Which source(s) to read (default `both`). |
 | `--since-days N` | Only items modified within the last N days. |
-| `--limit N` | Cap the number of items processed. |
+| `--limit N` | Cap the number of items processed (e.g. `--limit 3` while developing). |
+| `--quarter "Q3 2026"` | Only items detected for that target quarter. |
+| `--force` | Reprocess everything, ignoring the unchanged-item cache. |
+| `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |
 | `--title-prefix` | Prefix for generated page titles (default `[M365] `). |
-| `--dry-run` | Process but do not write to Confluence. |
-| `-v` | Debug logging. |
+| `--dry-run` | Process but do not write to Confluence (and do not save state). |
+| `-v` | Debug logging for this tool. |
+| `--debug-http` | Also show raw HTTP logs from httpx/anthropic/openai. |
+
+## Quarters, slip detection & dashboards
+
+- Each note gets a **target quarter** (LLM-derived, with a regex/date hint) and an
+  **evergreen decision** (`Activate` / `Deactivate` / `Communicate` / `Monitor`) with a rationale.
+- A local **state file** records a content hash per item, so **unchanged items are skipped**
+  on later runs (saves tokens). Use `--force` to override.
+- When an item's target quarter moves later than last seen, it is flagged as a **slip**
+  (warning banner on the page; marked on the dashboard).
+- A **per-quarter dashboard page** is created/updated listing all features of that quarter.
+
+## Saving tokens
+
+- Unchanged items are skipped automatically (state file); only new/changed items hit the LLM.
+- The system prompt is sent with **prompt caching** (Anthropic) so the standards block is cheap to reuse.
+- Use `--since-days`, `--limit`, a cheaper model (`ANTHROPIC_MODEL=claude-haiku-4-5`) or `AI_PROVIDER=local`.
 
 ## Configuration
 
 All configuration is via environment variables (see `.env.example`):
 
 - **Graph:** `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET`
-- **AI:** `AI_PROVIDER`, `OUTPUT_LANGUAGE`, plus the keys for the chosen backend
+- **AI:** `AI_PROVIDER`, `OUTPUT_LANGUAGE`, the keys for the chosen backend, and optional
+  `ORG_CONTEXT` / `ORG_CONTEXT_FILE` to tailor recommendations to your environment
 - **Confluence:** `CONFLUENCE_BASE_URL`, `CONFLUENCE_TOKEN` (PAT — `ConfluencePAT` also accepted), `CONFLUENCE_SPACE`, `CONFLUENCE_PARENT_PAGE_ID`
 
 ## Development

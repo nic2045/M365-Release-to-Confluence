@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -25,6 +26,15 @@ def _require_any(*names: str) -> str:
         if value:
             return value
     raise ConfigError(f"Missing required environment variable (one of): {', '.join(names)}")
+
+
+def _load_org_context() -> str:
+    path = os.getenv("ORG_CONTEXT_FILE")
+    if path:
+        file_path = Path(path)
+        if file_path.exists():
+            return file_path.read_text(encoding="utf-8").strip()
+    return os.getenv("ORG_CONTEXT", "").strip()
 
 
 @dataclass
@@ -76,6 +86,9 @@ class AIConfig:
     local_base_url: str = "http://localhost:11434/v1"
     local_model: str = ""
     local_api_key: str = "not-needed"
+    # Optional organisation profile injected into the (cached) system prompt so
+    # decision recommendations reflect your environment.
+    org_context: str = ""
 
     @classmethod
     def from_env(cls) -> AIConfig:
@@ -96,6 +109,7 @@ class AIConfig:
             local_base_url=os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:11434/v1"),
             local_model=os.getenv("LOCAL_LLM_MODEL", ""),
             local_api_key=os.getenv("LOCAL_LLM_API_KEY", "not-needed"),
+            org_context=_load_org_context(),
         )
 
 
