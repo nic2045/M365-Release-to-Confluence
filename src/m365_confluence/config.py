@@ -28,6 +28,13 @@ def _require_any(*names: str) -> str:
     raise ConfigError(f"Missing required environment variable (one of): {', '.join(names)}")
 
 
+def _clean_token(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        value = value[1:-1].strip()
+    return value
+
+
 def _load_org_context() -> str:
     path = os.getenv("ORG_CONTEXT_FILE")
     if path:
@@ -123,9 +130,9 @@ class ConfluenceConfig:
     @classmethod
     def from_env(cls) -> ConfluenceConfig:
         return cls(
-            base_url=_require("CONFLUENCE_BASE_URL").rstrip("/"),
-            token=_require_any("CONFLUENCE_TOKEN", "ConfluencePAT"),
-            space_key=_require("CONFLUENCE_SPACE"),
+            base_url=_require("CONFLUENCE_BASE_URL").strip().rstrip("/"),
+            token=_clean_token(_require_any("CONFLUENCE_TOKEN", "ConfluencePAT")),
+            space_key=_require("CONFLUENCE_SPACE").strip(),
             parent_page_id=os.getenv("CONFLUENCE_PARENT_PAGE_ID", ""),
         )
 

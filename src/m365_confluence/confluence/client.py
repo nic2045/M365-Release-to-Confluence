@@ -33,6 +33,23 @@ class ConfluenceClient:
     def _api(self) -> str:
         return f"{self._config.base_url}/rest/api/content"
 
+    @staticmethod
+    def _check(resp) -> None:
+        if resp.status_code == 401:
+            raise ConfluenceError(
+                "401 Unauthorized from Confluence. The Personal Access Token was "
+                "rejected. Check that CONFLUENCE_TOKEN/ConfluencePAT is a valid, "
+                "non-expired PAT (no extra spaces/newlines) and that this instance "
+                "supports Bearer PAT auth (Confluence Data Center 7.9+)."
+            )
+        if resp.status_code == 403:
+            raise ConfluenceError(
+                "403 Forbidden from Confluence. The token authenticated but lacks "
+                "permission for this space/page. Check CONFLUENCE_SPACE and the "
+                "user's space permissions."
+            )
+        resp.raise_for_status()
+
     def find_page(self, title: str) -> dict | None:
         resp = self._session.get(
             self._api,
@@ -43,7 +60,7 @@ class ConfluenceClient:
             },
             timeout=_TIMEOUT,
         )
-        resp.raise_for_status()
+        self._check(resp)
         results = resp.json().get("results", [])
         return results[0] if results else None
 
@@ -64,7 +81,7 @@ class ConfluenceClient:
         if self._config.parent_page_id:
             payload["ancestors"] = [{"id": self._config.parent_page_id}]
         resp = self._session.post(self._api, json=payload, timeout=_TIMEOUT)
-        resp.raise_for_status()
+        self._check(resp)
         return resp.json()
 
     def _update(self, existing: dict, title: str, body_storage: str) -> dict:
@@ -77,5 +94,5 @@ class ConfluenceClient:
             "body": {"storage": {"value": body_storage, "representation": "storage"}},
         }
         resp = self._session.put(f"{self._api}/{page_id}", json=payload, timeout=_TIMEOUT)
-        resp.raise_for_status()
+        self._check(resp)
         return resp.json()
