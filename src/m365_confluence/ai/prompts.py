@@ -22,13 +22,24 @@ House standards for every change note:
 - Always state who is affected and what (if anything) admins or users must do.
 - Prefer concrete dates over vague phrasing when the source provides them.
 
-Return ONLY a single JSON object (no markdown fences) with these keys:
+Return ONLY a single, valid JSON object (no markdown fences, no commentary)
+with exactly these keys:
   "title":              string  - a short, descriptive note title
   "summary":            string  - 2-4 sentence plain-language summary
   "impact":             string  - who/what is affected and how
   "audience":           string  - one of: "Admins", "End users", "Both"
   "recommended_action": string  - what the reader should do; "" if nothing
   "action_items":       string[] - concrete, actionable steps (may be empty)
+
+JSON rules (strict):
+- Output must parse as JSON (RFC 8259). Escape every double quote inside a
+  string value as \\". Do not use single quotes for JSON.
+- Do not put raw line breaks inside string values; keep each value on one line.
+- No trailing commas. No text before the opening {{ or after the closing }}.
+
+Example shape (values are illustrative only):
+{{"title":"...","summary":"...","impact":"...","audience":"Admins",\
+"recommended_action":"...","action_items":["...","..."]}}
 """
 
 _USER_TEMPLATE = """\
@@ -94,7 +105,8 @@ def _load_json(raw: str) -> dict:
     start, end = text.find("{"), text.rfind("}")
     if start != -1 and end != -1:
         text = text[start : end + 1]
-    return json.loads(text)
+    # strict=False tolerates literal control characters (e.g. newlines) in strings.
+    return json.loads(text, strict=False)
 
 
 def render_storage(item: ProcessedItem) -> str:

@@ -20,6 +20,7 @@ class RunResult:
     fetched: int
     processed: int
     published: int
+    skipped: int
     titles: list[str]
 
 
@@ -54,18 +55,29 @@ def run(
 
     processed: list[ProcessedItem] = []
     published = 0
+    skipped = 0
     for item in items:
         log.info("Processing %s", item.dedupe_key())
-        result = process_item(provider, item, config.ai.output_language)
+        try:
+            result = process_item(provider, item, config.ai.output_language)
+        except Exception:
+            log.exception("Skipping %s: processing failed", item.dedupe_key())
+            skipped += 1
+            continue
         result.confluence_title = f"{title_prefix}{result.confluence_title}"
         processed.append(result)
         if confluence is not None:
-            confluence.upsert_page(result.confluence_title, result.confluence_body)
-            published += 1
+            try:
+                confluence.upsert_page(result.confluence_title, result.confluence_body)
+                published += 1
+            except Exception:
+                log.exception("Skipping %s: Confluence write failed", item.dedupe_key())
+                skipped += 1
 
     return RunResult(
         fetched=len(items),
         processed=len(processed),
         published=published,
+        skipped=skipped,
         titles=[p.confluence_title for p in processed],
     )

@@ -83,7 +83,8 @@ def main(argv: list[str] | None = None) -> int:
 
     mode = "dry-run (nothing published)" if args.dry_run else f"published {result.published}"
     print(
-        f"Done. fetched={result.fetched} processed={result.processed} ({mode}).",
+        f"Done. fetched={result.fetched} processed={result.processed} "
+        f"skipped={result.skipped} ({mode}).",
         file=sys.stderr,
     )
     for title in result.titles:
