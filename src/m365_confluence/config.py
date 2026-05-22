@@ -19,6 +19,14 @@ def _require(name: str) -> str:
     return value
 
 
+def _require_any(*names: str) -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    raise ConfigError(f"Missing required environment variable (one of): {', '.join(names)}")
+
+
 @dataclass
 class GraphConfig:
     tenant_id: str
@@ -102,7 +110,7 @@ class ConfluenceConfig:
     def from_env(cls) -> ConfluenceConfig:
         return cls(
             base_url=_require("CONFLUENCE_BASE_URL").rstrip("/"),
-            token=_require("CONFLUENCE_TOKEN"),
+            token=_require_any("CONFLUENCE_TOKEN", "ConfluencePAT"),
             space_key=_require("CONFLUENCE_SPACE"),
             parent_page_id=os.getenv("CONFLUENCE_PARENT_PAGE_ID", ""),
         )

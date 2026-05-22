@@ -64,7 +64,7 @@ All configuration is via environment variables (see `.env.example`):
 
 - **Graph:** `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET`
 - **AI:** `AI_PROVIDER`, `OUTPUT_LANGUAGE`, plus the keys for the chosen backend
-- **Confluence:** `CONFLUENCE_BASE_URL`, `CONFLUENCE_TOKEN` (PAT), `CONFLUENCE_SPACE`, `CONFLUENCE_PARENT_PAGE_ID`
+- **Confluence:** `CONFLUENCE_BASE_URL`, `CONFLUENCE_TOKEN` (PAT — `ConfluencePAT` also accepted), `CONFLUENCE_SPACE`, `CONFLUENCE_PARENT_PAGE_ID`
 
 ## Development
 
