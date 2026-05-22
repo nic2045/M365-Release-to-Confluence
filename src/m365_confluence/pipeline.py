@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -56,22 +57,37 @@ def run(
     processed: list[ProcessedItem] = []
     published = 0
     skipped = 0
-    for item in items:
-        log.info("Processing %s", item.dedupe_key())
+    total = len(items)
+    for index, item in enumerate(items, start=1):
+        log.info("[%d/%d] Processing %s ...", index, total, item.dedupe_key())
+        started = time.monotonic()
         try:
             result = process_item(provider, item, config.ai.output_language)
         except Exception:
-            log.exception("Skipping %s: processing failed", item.dedupe_key())
+            log.exception("[%d/%d] Skipping %s: processing failed", index, total, item.dedupe_key())
             skipped += 1
             continue
+        log.info(
+            "[%d/%d] Summarised %s in %.1fs",
+            index,
+            total,
+            item.dedupe_key(),
+            time.monotonic() - started,
+        )
         result.confluence_title = f"{title_prefix}{result.confluence_title}"
         processed.append(result)
         if confluence is not None:
             try:
                 confluence.upsert_page(result.confluence_title, result.confluence_body)
                 published += 1
+                log.info("[%d/%d] Published: %s", index, total, result.confluence_title)
             except Exception:
-                log.exception("Skipping %s: Confluence write failed", item.dedupe_key())
+                log.exception(
+                    "[%d/%d] Skipping %s: Confluence write failed",
+                    index,
+                    total,
+                    item.dedupe_key(),
+                )
                 skipped += 1
 
     return RunResult(

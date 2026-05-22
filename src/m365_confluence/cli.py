@@ -50,17 +50,39 @@ def _build_parser() -> argparse.ArgumentParser:
         "-v",
         "--verbose",
         action="store_true",
-        help="Enable debug logging.",
+        help="Enable debug logging for this tool (third-party HTTP logs stay quiet).",
+    )
+    parser.add_argument(
+        "--debug-http",
+        action="store_true",
+        help="Also show verbose HTTP logs from httpx/anthropic/openai/requests.",
     )
     return parser
 
 
+def _configure_logging(*, verbose: bool, debug_http: bool) -> None:
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            fmt="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+    root = logging.getLogger()
+    root.handlers[:] = [handler]
+    root.setLevel(logging.INFO)
+
+    logging.getLogger("m365_confluence").setLevel(logging.DEBUG if verbose else logging.INFO)
+
+    # Keep noisy HTTP client libraries quiet unless explicitly requested.
+    http_level = logging.DEBUG if debug_http else logging.WARNING
+    for noisy in ("httpx", "httpcore", "anthropic", "openai", "urllib3"):
+        logging.getLogger(noisy).setLevel(http_level)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(levelname)s %(message)s",
-    )
+    _configure_logging(verbose=args.verbose, debug_http=args.debug_http)
 
     use_message_center = args.source in {"both", "message-center"}
     use_roadmap = args.source in {"both", "roadmap"}
