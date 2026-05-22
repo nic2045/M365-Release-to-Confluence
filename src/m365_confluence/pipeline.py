@@ -11,6 +11,7 @@ from m365_confluence.ai import build_provider, process_item
 from m365_confluence.ai.prompts import render_storage
 from m365_confluence.config import Config
 from m365_confluence.confluence import ConfluenceClient
+from m365_confluence.filters import apply_filters
 from m365_confluence.models import ChangeItem, ProcessedItem
 from m365_confluence.quarters import derive_quarter, quarter_key
 from m365_confluence.reporting import build_dashboard_body, dashboard_title, group_by_quarter
@@ -58,6 +59,10 @@ def run(
     since_days: int | None = None,
     limit: int | None = None,
     quarter: str | None = None,
+    major_only: bool = False,
+    action_required: bool = False,
+    products: list[str] | None = None,
+    categories: list[str] | None = None,
     dry_run: bool = False,
     force: bool = False,
     title_prefix: str = "[M365] ",
@@ -67,10 +72,19 @@ def run(
     if since_days is not None:
         since = datetime.now(timezone.utc) - timedelta(days=since_days)
 
-    items = aggregate(collect(config), since=since, limit=limit)
+    items = aggregate(collect(config), since=since, limit=None)
     if quarter:
         items = [i for i in items if derive_quarter(i) == quarter]
-    log.info("Aggregated %d change item(s)", len(items))
+    items = apply_filters(
+        items,
+        major_only=major_only,
+        action_required=action_required,
+        products=products,
+        categories=categories,
+    )
+    if limit is not None:
+        items = items[:limit]
+    log.info("Aggregated %d change item(s) after filters", len(items))
 
     state = StateStore(state_file).load()
     provider = build_provider(config.ai)

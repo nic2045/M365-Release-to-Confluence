@@ -55,6 +55,10 @@ m365-to-confluence --source roadmap --limit 10
 | `--since-days N` | Only items modified within the last N days. |
 | `--limit N` | Cap the number of items processed (e.g. `--limit 3` while developing). |
 | `--quarter "Q3 2026"` | Only items detected for that target quarter. |
+| `--major-only` | Only Message Center items flagged as a major change. |
+| `--action-required` | Only items with an action-required deadline. |
+| `--product NAME` | Only items touching this product (repeatable, substring, e.g. `--product Teams`). |
+| `--category NAME` | Only items in this MC category (repeatable, e.g. `planForChange`). |
 | `--force` | Reprocess everything, ignoring the unchanged-item cache. |
 | `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |
 | `--title-prefix` | Prefix for generated page titles (default `[M365] `). |

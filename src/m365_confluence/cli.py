@@ -42,6 +42,31 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Only items detected for this target quarter, e.g. "Q3 2026".',
     )
     parser.add_argument(
+        "--major-only",
+        action="store_true",
+        help="Only Message Center items flagged as a major change.",
+    )
+    parser.add_argument(
+        "--action-required",
+        action="store_true",
+        help="Only items with an action-required deadline.",
+    )
+    parser.add_argument(
+        "--product",
+        action="append",
+        default=None,
+        metavar="NAME",
+        help="Only items touching this product (repeatable; substring match, e.g. Teams).",
+    )
+    parser.add_argument(
+        "--category",
+        action="append",
+        default=None,
+        metavar="NAME",
+        help="Only items in this Message Center category (repeatable), "
+        "e.g. planForChange, preventOrFixIssue, stayInformed.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Reprocess all items, even unchanged ones (ignores the state cache).",
@@ -112,6 +137,10 @@ def main(argv: list[str] | None = None) -> int:
             since_days=args.since_days,
             limit=args.limit,
             quarter=args.quarter,
+            major_only=args.major_only,
+            action_required=args.action_required,
+            products=args.product,
+            categories=args.category,
             dry_run=args.dry_run,
             force=args.force,
             title_prefix=args.title_prefix,
