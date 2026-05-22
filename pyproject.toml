@@ -3,18 +3,30 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyshell-starter"
-version = "0.2.0"
-description = "Modern starter template for projects that ship Python and PowerShell side by side"
+name = "m365-release-to-confluence"
+version = "0.1.0"
+description = "Read current changes and upcoming rollouts from the Microsoft 365 platform, summarise them with an LLM, and publish them to Confluence following your standards."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
+dependencies = [
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+]
 
 [project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.40"]
+all = ["anthropic>=0.40", "openai>=1.40"]
 dev = [
     "ruff>=0.6",
     "pytest>=8",
+    "anthropic>=0.40",
+    "openai>=1.40",
 ]
+
+[project.scripts]
+m365-to-confluence = "m365_confluence.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

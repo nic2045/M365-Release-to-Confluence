@@ -1,0 +1,9 @@
+"""Read M365 changes/rollouts, summarise them with an LLM, publish to Confluence."""
+
+from __future__ import annotations
+
+__version__ = "0.1.0"
+
+from m365_confluence.models import ChangeItem, ProcessedItem
+
+__all__ = ["ChangeItem", "ProcessedItem", "__version__"]

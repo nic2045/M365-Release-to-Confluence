@@ -1,0 +1,138 @@
+"""Prompt construction and response parsing for change processing.
+
+The system prompt encodes *your standards* for how a change should be
+written up. Adjust ``STANDARDS`` to match your house style — it is the single
+place that defines tone, structure and required fields.
+"""
+
+from __future__ import annotations
+
+import html
+import json
+
+from m365_confluence.models import ChangeItem, ProcessedItem
+
+STANDARDS = """\
+You are a Microsoft 365 change manager. You turn raw M365 Message Center posts
+and roadmap entries into clear, consistent internal change notes.
+
+House standards for every change note:
+- Write in {language}. Use a neutral, professional tone.
+- Be concise and factual. Never invent details that are not in the source.
+- Always state who is affected and what (if anything) admins or users must do.
+- Prefer concrete dates over vague phrasing when the source provides them.
+
+Return ONLY a single JSON object (no markdown fences) with these keys:
+  "title":              string  - a short, descriptive note title
+  "summary":            string  - 2-4 sentence plain-language summary
+  "impact":             string  - who/what is affected and how
+  "audience":           string  - one of: "Admins", "End users", "Both"
+  "recommended_action": string  - what the reader should do; "" if nothing
+  "action_items":       string[] - concrete, actionable steps (may be empty)
+"""
+
+_USER_TEMPLATE = """\
+Process the following M365 change into an internal change note.
+
+Source: {source}
+Reference ID: {id}
+Status: {status}
+Category: {category}
+Products: {products}
+Tags: {tags}
+Last modified: {last_modified}
+Act by: {act_by}
+Source URL: {url}
+
+--- RAW CONTENT START ---
+{body}
+--- RAW CONTENT END ---
+"""
+
+
+def build_system_prompt(language: str) -> str:
+    return STANDARDS.format(language=language)
+
+
+def build_user_prompt(item: ChangeItem) -> str:
+    return _USER_TEMPLATE.format(
+        source=item.source,
+        id=item.id,
+        status=item.status or "n/a",
+        category=item.category or "n/a",
+        products=", ".join(item.products) or "n/a",
+        tags=", ".join(item.tags) or "n/a",
+        last_modified=item.last_modified.isoformat() if item.last_modified else "n/a",
+        act_by=item.act_by.isoformat() if item.act_by else "n/a",
+        url=item.url or "n/a",
+        body=item.body[:12000],
+    )
+
+
+def parse_response(raw: str, item: ChangeItem) -> ProcessedItem:
+    data = _load_json(raw)
+    title = (data.get("title") or item.title).strip()
+    action_items = [str(a).strip() for a in data.get("action_items", []) if str(a).strip()]
+    processed = ProcessedItem(
+        source_item=item,
+        summary=str(data.get("summary", "")).strip(),
+        impact=str(data.get("impact", "")).strip(),
+        audience=str(data.get("audience", "")).strip(),
+        recommended_action=str(data.get("recommended_action", "")).strip(),
+        action_items=action_items,
+        confluence_title=title,
+    )
+    processed.confluence_body = render_storage(processed)
+    return processed
+
+
+def _load_json(raw: str) -> dict:
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("```", 2)[1]
+        text = text.removeprefix("json").strip()
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end != -1:
+        text = text[start : end + 1]
+    return json.loads(text)
+
+
+def render_storage(item: ProcessedItem) -> str:
+    """Render a Confluence storage-format (XHTML) body following house standards."""
+    src = item.source_item
+
+    def esc(value: str) -> str:
+        return html.escape(value or "")
+
+    meta_rows = "".join(
+        f"<tr><th>{esc(label)}</th><td>{esc(value)}</td></tr>"
+        for label, value in (
+            ("Source", src.source),
+            ("Reference ID", src.id),
+            ("Status", src.status),
+            ("Products", ", ".join(src.products)),
+            ("Audience", item.audience),
+            ("Act by", src.act_by.date().isoformat() if src.act_by else ""),
+        )
+        if value
+    )
+
+    actions = ""
+    if item.action_items:
+        lis = "".join(f"<li>{esc(a)}</li>" for a in item.action_items)
+        actions = f"<h2>Action items</h2><ul>{lis}</ul>"
+
+    recommended = ""
+    if item.recommended_action:
+        recommended = f"<h2>Recommended action</h2><p>{esc(item.recommended_action)}</p>"
+
+    link = f'<p><a href="{esc(src.url)}">Original source</a></p>' if src.url else ""
+
+    return (
+        f"<table><tbody>{meta_rows}</tbody></table>"
+        f"<h2>Summary</h2><p>{esc(item.summary)}</p>"
+        f"<h2>Impact</h2><p>{esc(item.impact)}</p>"
+        f"{recommended}"
+        f"{actions}"
+        f"{link}"
+    )
