@@ -142,14 +142,20 @@ class Config:
     graph: GraphConfig | None
     roadmap: RoadmapConfig | None
     ai: AIConfig
-    confluence: ConfluenceConfig
+    confluence: ConfluenceConfig | None
 
     @classmethod
-    def load(cls, *, use_message_center: bool, use_roadmap: bool) -> Config:
+    def load(
+        cls,
+        *,
+        use_message_center: bool,
+        use_roadmap: bool,
+        require_confluence: bool = True,
+    ) -> Config:
         load_dotenv()
         return cls(
             graph=GraphConfig.from_env() if use_message_center else None,
             roadmap=RoadmapConfig.from_env() if use_roadmap else None,
             ai=AIConfig.from_env(),
-            confluence=ConfluenceConfig.from_env(),
+            confluence=ConfluenceConfig.from_env() if require_confluence else None,
         )

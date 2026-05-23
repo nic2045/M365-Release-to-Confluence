@@ -7,7 +7,7 @@ import logging
 import sys
 
 from m365_confluence.config import Config, ConfigError
-from m365_confluence.pipeline import run
+from m365_confluence.pipeline import collect_products, run
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -57,6 +57,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="NAME",
         help="Only items touching this product (repeatable; substring match, e.g. Teams).",
+    )
+    parser.add_argument(
+        "--list-products",
+        action="store_true",
+        help="List the products found in the source(s) with counts, then exit "
+        "(no LLM, no Confluence). Use it to pick values for --product.",
     )
     parser.add_argument(
         "--category",
@@ -131,6 +137,22 @@ def main(argv: list[str] | None = None) -> int:
 
     use_message_center = args.source in {"both", "message-center"}
     use_roadmap = args.source in {"both", "roadmap"}
+
+    if args.list_products:
+        try:
+            config = Config.load(
+                use_message_center=use_message_center,
+                use_roadmap=use_roadmap,
+                require_confluence=False,
+            )
+            products = collect_products(config)
+        except ConfigError as exc:
+            print(f"Configuration error: {exc}", file=sys.stderr)
+            return 2
+        print(f"Found {len(products)} distinct product(s):")
+        for name, count in products:
+            print(f"  {count:5d}  {name}")
+        return 0
 
     try:
         config = Config.load(

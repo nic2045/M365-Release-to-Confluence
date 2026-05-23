@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -45,6 +46,17 @@ def collect(config: Config) -> list[list[ChangeItem]]:
         log.info("Fetching M365 roadmap...")
         item_lists.append(RoadmapSource(config.roadmap).fetch())
     return item_lists
+
+
+def collect_products(config: Config) -> list[tuple[str, int]]:
+    """Distinct products across all (deduped) items with their counts, most common first."""
+    items = aggregate(collect(config), since=None, limit=None)
+    counter: Counter[str] = Counter()
+    for item in items:
+        for product in item.products:
+            if product:
+                counter[product] += 1
+    return sorted(counter.items(), key=lambda kv: (-kv[1], kv[0].lower()))
 
 
 def _detect_slip(result: ProcessedItem, previous_quarter: str) -> None:
