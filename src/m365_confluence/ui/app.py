@@ -15,74 +15,123 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from m365_confluence.review import load_drafts, save_drafts
 
 INDEX_HTML = """<!doctype html>
-<html lang="de"><head><meta charset="utf-8">
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>M365 Review</title>
 <style>
- body{font-family:system-ui,sans-serif;margin:0;background:#f4f5f7;color:#172b4d}
- header{background:#0a84ff;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:16px}
- header h1{font-size:18px;margin:0;flex:1}
- button{background:#0052cc;color:#fff;border:0;border-radius:4px;padding:8px 14px;cursor:pointer}
- button.secondary{background:#42526e}
- main{padding:20px;max-width:1100px;margin:0 auto}
- .card{background:#fff;border:1px solid #dfe1e6;border-radius:6px;padding:16px;margin-bottom:16px}
+ :root{--blue:#0a84ff;--ink:#1d2433;--muted:#6b7688;--line:#e6e8ec;--bg:#f5f7fa}
+ *{box-sizing:border-box}
+ body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:var(--bg);color:var(--ink);line-height:1.45}
+ header{position:sticky;top:0;z-index:10;background:var(--blue);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+ header h1{font-size:17px;margin:0;font-weight:650}
+ header .grow{flex:1}
+ button{background:#fff;color:var(--blue);border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:14px}
+ button.ghost{background:rgba(255,255,255,.18);color:#fff}
+ button:hover{opacity:.92}
+ .toggle{color:#fff;font-weight:500;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+ .steps{max-width:980px;margin:18px auto 4px;padding:0 24px;color:var(--muted);font-size:13px;display:flex;gap:18px;flex-wrap:wrap}
+ .steps b{color:var(--ink)}
+ main{padding:12px 24px 60px;max-width:980px;margin:0 auto}
+ .card{background:#fff;border:1px solid var(--line);border-left:5px solid var(--blue);border-radius:12px;padding:0;margin:18px 0;box-shadow:0 1px 3px rgba(16,24,40,.06);overflow:hidden;transition:opacity .15s}
+ .card.ignored{opacity:.5;border-left-color:#b0b7c3}
+ .chead{display:flex;align-items:center;gap:10px;padding:12px 18px;background:#fafbfc;border-bottom:1px solid var(--line)}
+ .num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+ .card.ignored .num{background:#b0b7c3}
+ .ctitle{flex:1;min-width:0}
+ .ctitle input{width:100%;border:0;background:transparent;font-size:16px;font-weight:650;color:var(--ink);padding:2px 0}
+ .ctitle input:focus{outline:0;border-bottom:2px solid var(--blue)}
+ .src{font-size:11px;color:var(--muted);margin-top:2px}
+ .cbody{padding:16px 18px}
+ .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+ .chip{background:#eef1f5;color:#4a5568;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600}
  .row{display:flex;gap:16px;flex-wrap:wrap}
- .row>div{flex:1;min-width:220px}
- label{display:block;font-size:12px;font-weight:600;color:#5e6c84;margin:8px 0 2px}
- input[type=text],select,textarea{width:100%;box-sizing:border-box;padding:6px;border:1px solid #dfe1e6;border-radius:4px;font:inherit}
- textarea{min-height:60px}
- .meta{font-size:12px;color:#5e6c84}
- .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff}
- #status{font-size:13px}
+ .row>div{flex:1;min-width:200px}
+ label{display:block;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);margin:10px 0 3px}
+ input[type=text],select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+ input[type=text]:focus,select:focus,textarea:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 3px rgba(10,132,255,.12)}
+ textarea{min-height:62px;resize:vertical}
+ .check{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--ink);margin-top:26px;text-transform:none;letter-spacing:0}
+ .dec{display:inline-block;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;color:#fff}
+ .Activate{background:#1f9d55}.Communicate{background:#0a84ff}.Monitor{background:#d9a400}.Deactivate{background:#d64545}
+ #status{font-size:13px;color:#fff;opacity:.95}
+ .empty{text-align:center;color:var(--muted);margin-top:80px}
+ .ignbtn{background:#eef1f5;color:#4a5568;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;border:0}
+ .card.ignored .ignbtn{background:var(--blue);color:#fff}
 </style></head>
 <body>
 <header>
   <h1>M365 Review &amp; Edit</h1>
   <span id="status"></span>
-  <button class="secondary" onclick="save()">Speichern</button>
-  <label style="color:#fff;font-weight:400"><input type="checkbox" id="dry"> Dry-run</label>
-  <button onclick="publish()">Nach Confluence veröffentlichen</button>
+  <span class="grow"></span>
+  <label class="toggle"><input type="checkbox" id="hideign" onchange="render()"> Ignorierte ausblenden</label>
+  <label class="toggle"><input type="checkbox" id="dry"> Dry-run</label>
+  <button class="ghost" onclick="save()">Speichern</button>
+  <button onclick="publish()">Veröffentlichen</button>
 </header>
+<div class="steps">
+  <span><b>1.</b> Durchgehen</span>
+  <span><b>2.</b> Bearbeiten oder <b>Ignorieren</b></span>
+  <span><b>3.</b> Speichern</span>
+  <span><b>4.</b> Veröffentlichen (ignorierte werden ausgelassen)</span>
+</div>
 <main id="list"></main>
 <script>
 const DECISIONS=["Activate","Communicate","Monitor","Deactivate"];
 let drafts=[];
 function setStatus(t){document.getElementById('status').textContent=t;}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 async function load(){
   const r=await fetch('/api/drafts');const d=await r.json();drafts=d.items||[];render();
-  setStatus(drafts.length+' Entwürfe ('+(d.review_file||'')+')');
+  setStatus(drafts.length+' Einträge');
 }
 function field(label,val,onin,ml){
-  const v=(val||'').replace(/"/g,'&quot;');
-  if(ml)return `<label>${label}</label><textarea oninput="${onin}">${val||''}</textarea>`;
-  return `<label>${label}</label><input type="text" value="${v}" oninput="${onin}">`;
+  if(ml)return `<label>${label}</label><textarea oninput="${onin}">${esc(val)}</textarea>`;
+  return `<label>${label}</label><input type="text" value="${esc(val)}" oninput="${onin}">`;
 }
 function render(){
+  const hide=document.getElementById('hideign').checked;
   const el=document.getElementById('list');
-  el.innerHTML=drafts.map((it,i)=>{
+  const visible=drafts.map((it,i)=>[it,i]).filter(([it])=>!(hide&&it.ignored));
+  if(!visible.length){el.innerHTML='<div class="empty">Keine Einträge. Erst Entwürfe erzeugen:<br><code>make review</code></div>';return;}
+  el.innerHTML=visible.map(([it,i])=>{
     const e=it.edit, s=it.source;
     const opts=DECISIONS.map(o=>`<option ${o===e.decision?'selected':''}>${o}</option>`).join('');
-    return `<div class="card">
-      <div class="meta">${s.source} · ${s.id} · ${(s.products||[]).join(', ')}</div>
-      ${field('Titel',e.confluence_title,`upd(${i},'confluence_title',this.value)`)}
-      <div class="row">
-        <div>${field('Ziel-Quartal',e.target_quarter,`upd(${i},'target_quarter',this.value)`)}</div>
-        <div><label>Entscheidung</label><select onchange="upd(${i},'decision',this.value)">${opts}</select></div>
-        <div><label>CAB</label><label style="font-weight:400"><input type="checkbox" ${e.cab_required?'checked':''} onchange="upd(${i},'cab_required',this.checked)"> CAB erforderlich</label></div>
-        <div><label>Einzelseite</label><label style="font-weight:400"><input type="checkbox" ${it.make_page?'checked':''} onchange="updTop(${i},'make_page',this.checked)"> Seite anlegen</label></div>
+    const chips=(s.products||[]).map(p=>`<span class="chip">${esc(p)}</span>`).join('')
+      +(e.target_quarter?`<span class="chip">${esc(e.target_quarter)}</span>`:'')
+      +(e.cab_required?'<span class="chip" style="background:#fde8e8;color:#b42318">CAB</span>':'');
+    return `<div class="card ${it.ignored?'ignored':''}" id="card${i}">
+      <div class="chead">
+        <span class="num">${i+1}</span>
+        <div class="ctitle">
+          <input type="text" value="${esc(e.confluence_title)}" oninput="upd(${i},'confluence_title',this.value)">
+          <div class="src">${esc(s.source)} · ${esc(s.id)}</div>
+        </div>
+        <span class="dec ${e.decision}">${esc(e.decision)}</span>
+        <button class="ignbtn" onclick="toggleIgnore(${i})">${it.ignored?'Ignoriert ✓':'Ignorieren'}</button>
       </div>
-      ${field('CAB-Empfehlung',e.cab_recommendation,`upd(${i},'cab_recommendation',this.value)`)}
-      ${field('Zusammenfassung',e.summary,`upd(${i},'summary',this.value)`,true)}
-      ${field('Impact',e.impact,`upd(${i},'impact',this.value)`,true)}
-      ${field('Empfohlene Aktion',e.recommended_action,`upd(${i},'recommended_action',this.value)`)}
+      <div class="cbody">
+        <div class="chips">${chips}</div>
+        <div class="row">
+          <div>${field('Ziel-Quartal',e.target_quarter,`upd(${i},'target_quarter',this.value)`)}</div>
+          <div><label>Entscheidung</label><select onchange="upd(${i},'decision',this.value);render()">${opts}</select></div>
+          <div><label class="check"><input type="checkbox" ${e.cab_required?'checked':''} onchange="upd(${i},'cab_required',this.checked);render()"> CAB erforderlich</label></div>
+          <div><label class="check"><input type="checkbox" ${it.make_page?'checked':''} onchange="updTop(${i},'make_page',this.checked)"> Eigene Seite anlegen</label></div>
+        </div>
+        ${field('CAB-Empfehlung',e.cab_recommendation,`upd(${i},'cab_recommendation',this.value)`)}
+        ${field('Zusammenfassung',e.summary,`upd(${i},'summary',this.value)`,true)}
+        ${field('Impact',e.impact,`upd(${i},'impact',this.value)`,true)}
+        ${field('Empfohlene Aktion',e.recommended_action,`upd(${i},'recommended_action',this.value)`)}
+      </div>
     </div>`;
   }).join('');
 }
 function upd(i,k,v){drafts[i].edit[k]=v;}
 function updTop(i,k,v){drafts[i][k]=v;}
+function toggleIgnore(i){drafts[i].ignored=!drafts[i].ignored;render();}
 async function save(){
   setStatus('Speichere…');
   await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:drafts})});
-  setStatus('Gespeichert.');
+  const ign=drafts.filter(d=>d.ignored).length;
+  setStatus('Gespeichert ('+(drafts.length-ign)+' aktiv, '+ign+' ignoriert).');
 }
 async function publish(){
   await save();

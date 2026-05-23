@@ -49,3 +49,16 @@ def test_publish_dry_run(tmp_path):
     r = client.post("/api/publish", json={"dry_run": True})
     assert r.status_code == 200
     assert r.json()["processed"] == 1
+
+
+def test_publish_skips_ignored(tmp_path):
+    path = tmp_path / "review.json"
+    client = TestClient(create_app(str(path)))
+    d1 = _draft()
+    d2 = _draft()
+    d2["key"] = "roadmap:2"
+    d2["source"]["id"] = "2"
+    d2["ignored"] = True
+    client.post("/api/drafts", json={"items": [d1, d2]})
+    r = client.post("/api/publish", json={"dry_run": True})
+    assert r.json()["processed"] == 1  # ignored one excluded

@@ -62,3 +62,9 @@ def test_edit_then_roundtrip():
     draft["edit"]["decision"] = "Deactivate"  # simulate human edit
     _, processed2, _ = draft_to(draft)
     assert processed2.decision == "Deactivate"
+
+
+def test_draft_from_sets_ignored_false():
+    item, processed = _pair()
+    draft = draft_from(item, processed, make_page=True)
+    assert draft["ignored"] is False

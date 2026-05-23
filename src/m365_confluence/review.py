@@ -52,6 +52,7 @@ def draft_from(item: ChangeItem, processed: ProcessedItem, make_page: bool) -> d
             "cab_recommendation": processed.cab_recommendation,
         },
         "make_page": make_page,
+        "ignored": False,
     }
 
 

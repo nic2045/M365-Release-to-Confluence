@@ -291,7 +291,11 @@ def run_from_review(
     new_count = 0
     changed_count = 0
     slipped = 0
+    ignored = 0
     for draft in drafts:
+        if draft.get("ignored"):
+            ignored += 1
+            continue
         item, result, make_page = draft_to(draft)
         previous = state.get(item.dedupe_key())
         if previous is None:
@@ -305,6 +309,7 @@ def run_from_review(
             slipped += 1
         prepared.append((item, result, make_page))
 
+    log.info("From review: %d to publish, %d ignored", len(prepared), ignored)
     published = _publish_prepared(prepared, state, confluence)
     dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run)
     _update_changelog(
