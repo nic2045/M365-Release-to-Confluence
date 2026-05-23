@@ -7,7 +7,7 @@ import logging
 import sys
 
 from m365_confluence.config import Config, ConfigError
-from m365_confluence.pipeline import collect_products, run
+from m365_confluence.pipeline import collect_products, run, run_from_review
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -98,6 +98,18 @@ def _build_parser() -> argparse.ArgumentParser:
         "--changelog-file",
         default="m365_changelog.json",
         help="Path to the local changelog file (drives the Changelog page).",
+    )
+    parser.add_argument(
+        "--review-out",
+        metavar="PATH",
+        default=None,
+        help="Process items and write editable drafts to PATH (review.json); publish nothing.",
+    )
+    parser.add_argument(
+        "--from-review",
+        metavar="PATH",
+        default=None,
+        help="Publish edited drafts from PATH to Confluence without calling the LLM.",
     )
     parser.add_argument(
         "--title-prefix",
@@ -200,11 +212,35 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {count:5d}  {name}")
         return 0
 
+    if args.from_review:
+        try:
+            config = Config.load(
+                use_message_center=False,
+                use_roadmap=False,
+                require_confluence=not args.dry_run,
+            )
+            result = run_from_review(
+                config,
+                args.from_review,
+                dry_run=args.dry_run,
+                title_prefix=args.title_prefix,
+                state_file=args.state_file,
+                changelog_file=args.changelog_file,
+            )
+        except ConfigError as exc:
+            print(f"Configuration error: {exc}", file=sys.stderr)
+            return 2
+        print(
+            f"Published from review: pages={result.published} dashboards={result.dashboards}.",
+            file=sys.stderr,
+        )
+        return 0
+
     try:
         config = Config.load(
             use_message_center=use_message_center,
             use_roadmap=use_roadmap,
-            require_confluence=not args.dry_run,
+            require_confluence=not args.dry_run and not args.review_out,
         )
         # CLI overrides config defaults; config (.env) fills in when a flag is absent.
         f = config.filters
@@ -232,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
             title_prefix=args.title_prefix,
             state_file=args.state_file,
             changelog_file=args.changelog_file,
+            review_out=args.review_out,
         )
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)

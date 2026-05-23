@@ -66,6 +66,8 @@ m365-to-confluence --source roadmap --limit 10
 | `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |
 | `--changelog-file PATH` | Local changelog file driving the Changelog page (default `m365_changelog.json`). |
 | `--title-prefix` | Prefix for generated page titles (default `[M365] `). |
+| `--review-out PATH` | Process items and write editable drafts to PATH; publish nothing. |
+| `--from-review PATH` | Publish edited drafts from PATH to Confluence without calling the LLM. |
 | `--dry-run` | Process but do not write to Confluence (and do not save state). |
 | `-v` | Debug logging for this tool. |
 | `--debug-http` | Also show raw HTTP logs from httpx/anthropic/openai. |

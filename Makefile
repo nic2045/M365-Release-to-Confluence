@@ -37,6 +37,12 @@ products:  ## List the products found in the source(s)
 run:  ## Real run: publish to Confluence (SOURCE= overridable)
 	$(CLI) --source $(SOURCE)
 
+review:  ## Produce editable drafts (review.json) without publishing
+	$(CLI) --source $(SOURCE) --review-out review.json -v
+
+publish-review:  ## Publish edited drafts from review.json to Confluence
+	$(CLI) --from-review review.json
+
 clean:  ## Remove local state/changelog and caches
 	rm -f m365_state.json m365_changelog.json
 	rm -rf .pytest_cache .ruff_cache **/__pycache__

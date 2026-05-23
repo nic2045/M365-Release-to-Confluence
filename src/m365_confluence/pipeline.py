@@ -17,6 +17,7 @@ from m365_confluence.filters import apply_filters
 from m365_confluence.models import ChangeItem, ProcessedItem
 from m365_confluence.quarters import derive_quarter, quarter_key
 from m365_confluence.reporting import dashboard_title, quarter_dashboards
+from m365_confluence.review import draft_from, draft_to, load_drafts, save_drafts
 from m365_confluence.sources import MessageCenterSource, RoadmapSource, aggregate
 from m365_confluence.state import StateStore
 
@@ -92,6 +93,7 @@ def run(
     title_prefix: str = "[M365] ",
     state_file: str = "m365_state.json",
     changelog_file: str = "m365_changelog.json",
+    review_out: str | None = None,
 ) -> RunResult:
     since = None
     if since_days is not None:
@@ -113,10 +115,11 @@ def run(
 
     state = StateStore(state_file).load()
     provider = build_provider(config.ai)
-    confluence = None if dry_run else ConfluenceClient(config.confluence)
+    need_confluence = not dry_run and not review_out
+    confluence = ConfluenceClient(config.confluence) if need_confluence else None
 
     processed: list[ProcessedItem] = []
-    published = 0
+    prepared: list[tuple[ChangeItem, ProcessedItem, bool]] = []
     skipped = 0
     unchanged = 0
     slipped = 0
@@ -169,25 +172,27 @@ def run(
         result.confluence_title = f"{title_prefix}{result.confluence_title}"
         processed.append(result)
 
-        history = list(previous.quarter_history) if previous else []
-        if result.slipped and result.previous_quarter and result.previous_quarter not in history:
-            history.append(result.previous_quarter)
-
         make_page = _should_make_page(item, item_pages)
-        if confluence is not None and make_page:
-            try:
-                confluence.upsert_page(result.confluence_title, result.confluence_body)
-                published += 1
-                log.info("[%d/%d] Published: %s", index, total, result.confluence_title)
-            except Exception:
-                log.exception("[%d/%d] Skipping %s: Confluence write failed", index, total, key)
-                skipped += 1
-                continue
+        prepared.append((item, result, make_page))
 
-        state.record(item, result, has_page=make_page, quarter_history=history)
+    if review_out:
+        save_drafts(review_out, [draft_from(i, r, mp) for i, r, mp in prepared])
+        log.info("Wrote %d draft(s) to %s (nothing published)", len(prepared), review_out)
+        return RunResult(
+            fetched=len(items),
+            processed=len(processed),
+            published=0,
+            skipped=skipped,
+            unchanged=unchanged,
+            slipped=slipped,
+            new=new_count,
+            changed=changed_count,
+            dashboards=0,
+            titles=[r.confluence_title for _, r, _ in prepared],
+        )
 
+    published = _publish_prepared(prepared, state, confluence)
     dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run)
-
     _update_changelog(
         changelog_file,
         confluence,
@@ -198,7 +203,6 @@ def run(
         changed=changed_count,
         slipped=slipped,
     )
-
     if not dry_run:
         state.save()
         log.info("State saved to %s", state_file)
@@ -213,8 +217,30 @@ def run(
         new=new_count,
         changed=changed_count,
         dashboards=dashboards,
-        titles=[p.confluence_title for p in processed],
+        titles=[r.confluence_title for _, r, _ in prepared],
     )
+
+
+def _publish_prepared(prepared, state, confluence) -> int:
+    """Publish per-item pages (when make_page) and record state. Returns published count."""
+    published = 0
+    total = len(prepared)
+    for index, (item, result, make_page) in enumerate(prepared, start=1):
+        key = item.dedupe_key()
+        previous = state.get(key)
+        history = list(previous.quarter_history) if previous else []
+        if result.slipped and result.previous_quarter and result.previous_quarter not in history:
+            history.append(result.previous_quarter)
+        if confluence is not None and make_page:
+            try:
+                confluence.upsert_page(result.confluence_title, result.confluence_body)
+                published += 1
+                log.info("[%d/%d] Published: %s", index, total, result.confluence_title)
+            except Exception:
+                log.exception("[%d/%d] Page write failed: %s", index, total, key)
+                continue
+        state.record(item, result, has_page=make_page, quarter_history=history)
+    return published
 
 
 def _update_changelog(
@@ -245,6 +271,67 @@ def _update_changelog(
         log.info("Changelog published: %s", title)
     except Exception:
         log.exception("Changelog write failed: %s", title)
+
+
+def run_from_review(
+    config: Config,
+    review_file: str,
+    *,
+    dry_run: bool = False,
+    title_prefix: str = "[M365] ",
+    state_file: str = "m365_state.json",
+    changelog_file: str = "m365_changelog.json",
+) -> RunResult:
+    """Publish edited review drafts to Confluence without calling the LLM."""
+    drafts = load_drafts(review_file)
+    state = StateStore(state_file).load()
+    confluence = None if dry_run else ConfluenceClient(config.confluence)
+
+    prepared: list[tuple[ChangeItem, ProcessedItem, bool]] = []
+    new_count = 0
+    changed_count = 0
+    slipped = 0
+    for draft in drafts:
+        item, result, make_page = draft_to(draft)
+        previous = state.get(item.dedupe_key())
+        if previous is None:
+            new_count += 1
+        else:
+            changed_count += 1
+        _detect_slip(result, previous.target_quarter if previous else "")
+        if not result.confluence_body or result.slipped:
+            result.confluence_body = render_storage(result)
+        if result.slipped:
+            slipped += 1
+        prepared.append((item, result, make_page))
+
+    published = _publish_prepared(prepared, state, confluence)
+    dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run)
+    _update_changelog(
+        changelog_file,
+        confluence,
+        title_prefix,
+        dry_run,
+        processed=len(prepared),
+        new=new_count,
+        changed=changed_count,
+        slipped=slipped,
+    )
+    if not dry_run:
+        state.save()
+
+    return RunResult(
+        fetched=len(prepared),
+        processed=len(prepared),
+        published=published,
+        skipped=0,
+        unchanged=0,
+        slipped=slipped,
+        new=new_count,
+        changed=changed_count,
+        dashboards=dashboards,
+        titles=[r.confluence_title for _, r, _ in prepared],
+    )
 
 
 def _publish_dashboards(state, confluence, title_prefix: str, dry_run: bool) -> int:
