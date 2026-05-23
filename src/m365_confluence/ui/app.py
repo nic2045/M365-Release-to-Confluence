@@ -92,7 +92,7 @@ INDEX_HTML = """<!doctype html>
   <span class="flabel">Entwürfe erzeugen:</span>
   <select id="g_source"><option value="roadmap">Roadmap</option><option value="message-center">Message Center</option><option value="both">Beide</option></select>
   <label class="gopt">Limit <input type="number" id="g_limit" min="1" style="width:64px" value="20"></label>
-  <label class="gopt">Quartal <input type="text" id="g_quarter" placeholder="Q3 2026" style="width:90px"></label>
+  <label class="gopt">Quartal <select id="g_quarter"></select></label>
   <label class="gchk"><input type="checkbox" id="g_ww" checked> Worldwide</label>
   <label class="gchk"><input type="checkbox" id="g_new" checked> nur neue Rollouts</label>
   <label class="gchk"><input type="checkbox" id="g_major"> nur Major</label>
@@ -148,6 +148,7 @@ function toggleC(v){flip(activeChan,v);}
 function toggleP(v){flip(activeProd,v);}
 function toggleA(v){flip(activeArea,v);}
 async function load(){
+  populateQuarters('');
   try{const sr=await fetch('/api/settings');applySettings(await sr.json());}catch(e){}
   renderProductChecks([]);
   const r=await fetch('/api/drafts');const d=await r.json();drafts=d.items||[];
@@ -221,6 +222,22 @@ function updTop(i,k,v){drafts[i][k]=v;}
 function toggleItemArea(i,a){const e=drafts[i].edit;e.areas=e.areas||[];const x=e.areas.indexOf(a);x>=0?e.areas.splice(x,1):e.areas.push(a);render();}
 function toggleIgnore(i){drafts[i].ignored=!drafts[i].ignored;render();}
 let genProducts=new Set();
+function populateQuarters(selected){
+  const now=new Date();
+  let y=now.getFullYear(), q=Math.floor(now.getMonth()/3)+1;
+  q-=1; if(q<1){q=4;y-=1;}  // start one quarter back
+  const opts=['<option value="">— Alle —</option>'];
+  const seen=new Set();
+  for(let i=0;i<7;i++){
+    const label='Q'+q+' '+y; seen.add(label);
+    opts.push(`<option value="${label}">${label}</option>`);
+    q+=1; if(q>4){q=1;y+=1;}
+  }
+  if(selected && !seen.has(selected))opts.splice(1,0,`<option value="${selected}">${selected}</option>`);
+  const sel=document.getElementById('g_quarter');
+  sel.innerHTML=opts.join('');
+  sel.value=selected||'';
+}
 function renderProductChecks(all){
   const names=[...new Set([...genProducts, ...(all||[])])].sort();
   const box=document.getElementById('g_products_box');
@@ -246,7 +263,7 @@ function applySettings(s){
   if(!s||!Object.keys(s).length)return;
   if(s.source)document.getElementById('g_source').value=s.source;
   if(s.limit)document.getElementById('g_limit').value=s.limit;
-  if(s.quarter!=null)document.getElementById('g_quarter').value=s.quarter;
+  if(s.quarter!=null)populateQuarters(s.quarter);
   if(typeof s.worldwide_only==='boolean')document.getElementById('g_ww').checked=s.worldwide_only;
   if(typeof s.new_rollouts_only==='boolean')document.getElementById('g_new').checked=s.new_rollouts_only;
   if(typeof s.major_only==='boolean')document.getElementById('g_major').checked=s.major_only;
