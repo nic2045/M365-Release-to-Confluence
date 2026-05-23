@@ -48,3 +48,10 @@ def test_timeline_groups_products_and_unscheduled():
 def test_timeline_decision_colour():
     xml = build_timeline([_s("a", "x", "Teams", "Q3 2026", decision="Deactivate")], axis="quarter")
     assert "#fde0e0" in xml  # Deactivate fill
+
+
+def test_timeline_rows_by_service():
+    items = [_s("a", "x", "Outlook", "Q3 2026"), _s("b", "y", "Microsoft Teams", "Q3 2026")]
+    xml = build_timeline(items, axis="quarter", rows="service")
+    assert "Exchange Online" in xml
+    assert "Teams" in xml

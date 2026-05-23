@@ -55,6 +55,7 @@ SERVICE_COLOURS = {
     "SharePoint Online": "Green",
     "Teams": "Purple",
     "Compliance/Security": "Red",
+    "Sonstiges": "Yellow",
 }
 
 

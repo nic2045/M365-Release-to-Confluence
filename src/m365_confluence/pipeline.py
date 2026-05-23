@@ -106,6 +106,7 @@ def run(
     dry_run: bool = False,
     force: bool = False,
     item_pages: str = "major",
+    group_by: str = "service",
     title_prefix: str = "[M365] ",
     state_file: str = "m365_state.json",
     changelog_file: str = "m365_changelog.json",
@@ -216,7 +217,7 @@ def run(
         )
 
     published = _publish_prepared(prepared, state, confluence)
-    dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run)
+    dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run, group_by)
     _update_changelog(
         changelog_file,
         confluence,
@@ -303,6 +304,7 @@ def run_from_review(
     review_file: str,
     *,
     dry_run: bool = False,
+    group_by: str = "service",
     title_prefix: str = "[M365] ",
     state_file: str = "m365_state.json",
     changelog_file: str = "m365_changelog.json",
@@ -336,7 +338,7 @@ def run_from_review(
 
     log.info("From review: %d to publish, %d ignored", len(prepared), ignored)
     published = _publish_prepared(prepared, state, confluence)
-    dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run)
+    dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run, group_by)
     _update_changelog(
         changelog_file,
         confluence,
@@ -364,9 +366,11 @@ def run_from_review(
     )
 
 
-def _publish_dashboards(state, confluence, title_prefix: str, dry_run: bool) -> int:
+def _publish_dashboards(
+    state, confluence, title_prefix: str, dry_run: bool, group_by: str = "service"
+) -> int:
     count = 0
-    for quarter_label, body in quarter_dashboards(state.all_items()):
+    for quarter_label, body in quarter_dashboards(state.all_items(), group_by=group_by):
         title = dashboard_title(quarter_label, title_prefix)
         if dry_run or confluence is None:
             log.info("Dashboard (dry-run): %s", title)

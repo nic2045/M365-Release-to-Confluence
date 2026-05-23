@@ -11,6 +11,7 @@ import html
 import re
 
 from m365_confluence.quarters import UNSCHEDULED, quarter_key
+from m365_confluence.services import services_for
 from m365_confluence.state import ItemState
 
 NO_PRODUCT = "Ohne Produkt"
@@ -62,6 +63,12 @@ def _products_of(state: ItemState) -> list[str]:
     return state.products or [NO_PRODUCT]
 
 
+def _rows_of(state: ItemState, rows: str) -> list[str]:
+    if rows == "service":
+        return services_for(state.products)
+    return _products_of(state)
+
+
 def _bucket(state: ItemState, axis: str) -> str:
     q = state.target_quarter or UNSCHEDULED
     if axis != "month" or q == UNSCHEDULED:
@@ -103,18 +110,18 @@ def _cell(cid: str, value: str, style: str, x: int, y: int, w: int, h: int) -> s
     )
 
 
-def build_timeline(states: list[ItemState], axis: str = "quarter") -> str:
+def build_timeline(states: list[ItemState], axis: str = "quarter", rows: str = "service") -> str:
     products = sorted(
-        {p for s in states for p in _products_of(s)},
-        key=lambda p: (p == NO_PRODUCT, p.lower()),
+        {p for s in states for p in _rows_of(s, rows)},
+        key=lambda p: (p in (NO_PRODUCT, "Sonstiges"), p.lower()),
     )
     columns = _columns(states, axis)
 
-    # Index items by (product, column).
+    # Index items by (row, column).
     grid: dict[tuple[str, str], list[ItemState]] = {}
     for s in states:
         col = _bucket(s, axis)
-        for p in _products_of(s):
+        for p in _rows_of(s, rows):
             grid.setdefault((p, col), []).append(s)
 
     # Row heights from the busiest cell in each row.

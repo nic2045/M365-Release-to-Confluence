@@ -30,6 +30,8 @@ _DEFAULT_MAP: list[tuple[str, str]] = [
     ("defender for office", "Compliance/Security"),
     ("purview", "Compliance/Security"),
     ("information protection", "Compliance/Security"),
+    ("clipchamp", "Sonstiges"),
+    ("stream", "Sonstiges"),
 ]
 
 

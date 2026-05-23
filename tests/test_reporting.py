@@ -77,7 +77,7 @@ def test_dashboard_groups_by_product_with_headings():
     b.products = ["SharePoint"]
     a.products = ["Microsoft Teams"]
     a.cab_recommendation = "CAB-Review empfohlen"
-    body = build_dashboard_body("Q3 2026", [a, b])
+    body = build_dashboard_body("Q3 2026", [a, b], group_by="product")
     assert "<h3>Microsoft Teams</h3>" in body
     assert "<h3>SharePoint</h3>" in body
     assert "CAB-Empfehlung" in body  # header
@@ -87,14 +87,14 @@ def test_dashboard_groups_by_product_with_headings():
 def test_dashboard_no_product_bucket():
     s = _state("a", "Q3 2026")
     s.products = []
-    body = build_dashboard_body("Q3 2026", [s])
+    body = build_dashboard_body("Q3 2026", [s], group_by="product")
     assert "<h3>Ohne Produkt</h3>" in body
 
 
 def test_feature_appears_under_each_product():
     s = _state("a", "Q3 2026", title="Multi")
     s.products = ["Teams", "Exchange"]
-    body = build_dashboard_body("Q3 2026", [s])
+    body = build_dashboard_body("Q3 2026", [s], group_by="product")
     assert "<h3>Teams</h3>" in body
     assert "<h3>Exchange</h3>" in body
 
@@ -106,3 +106,11 @@ def test_cab_badge_in_dashboard():
     body = build_dashboard_body("Q3 2026", [s])
     assert "CAB: Ja" in body
     assert "Bitte CAB" in body
+
+
+def test_dashboard_group_by_service():
+    a = _state("a", "Q3 2026", title="A")
+    a.products = ["Outlook"]
+    body = build_dashboard_body("Q3 2026", [a], group_by="service")
+    assert "<h3>Exchange Online</h3>" in body
+    assert "nach Service" in body

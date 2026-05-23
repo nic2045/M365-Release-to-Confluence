@@ -62,6 +62,12 @@ def _products_of(state: ItemState) -> list[str]:
     return state.products or [NO_PRODUCT]
 
 
+def _groups_of(state: ItemState, group_by: str) -> list[str]:
+    if group_by == "product":
+        return _products_of(state)
+    return services_for(state.products)
+
+
 def _assessment_cell(state: ItemState) -> str:
     tags = []
     if state.data_protection_impact:
@@ -105,21 +111,23 @@ def build_dashboard_body(
     quarter: str,
     items: list[ItemState],
     moved_out: list[ItemState] | None = None,
+    group_by: str = "service",
 ) -> str:
-    by_product: dict[str, list[ItemState]] = {}
+    grouped: dict[str, list[ItemState]] = {}
     for state in items:
-        for product in _products_of(state):
-            by_product.setdefault(product, []).append(state)
+        for key in _groups_of(state, group_by):
+            grouped.setdefault(key, []).append(state)
 
     label = quarter or UNSCHEDULED
+    by_label = "Produkt" if group_by == "product" else "Service"
     body = (
-        f"<p>{len(items)} Feature(s) für <strong>{_esc(label)}</strong>, nach Produkt gegliedert. "
-        "Automatisch generiert – nicht manuell bearbeiten.</p>"
+        f"<p>{len(items)} Feature(s) für <strong>{_esc(label)}</strong>, nach {by_label} "
+        "gegliedert. Automatisch generiert – nicht manuell bearbeiten.</p>"
     )
-    for product in sorted(by_product, key=lambda p: (p == NO_PRODUCT, p.lower())):
-        group = sorted(by_product[product], key=lambda s: (not s.slipped, s.title.lower()))
+    for key in sorted(grouped, key=lambda p: (p in (NO_PRODUCT, "Sonstiges"), p.lower())):
+        group = sorted(grouped[key], key=lambda s: (not s.slipped, s.title.lower()))
         rows = "".join(_feature_row(s) for s in group)
-        body += f"<h3>{_esc(product)}</h3><table><tbody>{_HEADER}{rows}</tbody></table>"
+        body += f"<h3>{_esc(key)}</h3><table><tbody>{_HEADER}{rows}</tbody></table>"
 
     if moved_out:
         moved_rows = "".join(
@@ -138,7 +146,7 @@ def build_dashboard_body(
     return body
 
 
-def quarter_dashboards(states: list[ItemState]) -> list[tuple[str, str]]:
+def quarter_dashboards(states: list[ItemState], group_by: str = "service") -> list[tuple[str, str]]:
     """Build (quarter_label, storage_body) for every quarter, incl. moved-out notes."""
     current: dict[str, list[ItemState]] = {}
     moved: dict[str, list[ItemState]] = {}
@@ -152,7 +160,12 @@ def quarter_dashboards(states: list[ItemState]) -> list[tuple[str, str]]:
     labels = set(current) | set(moved)
     ordered = sorted(labels, key=quarter_key)
     return [
-        (label, build_dashboard_body(label, current.get(label, []), moved.get(label, [])))
+        (
+            label,
+            build_dashboard_body(
+                label, current.get(label, []), moved.get(label, []), group_by=group_by
+            ),
+        )
         for label in ordered
     ]
 

@@ -15,6 +15,11 @@ def test_service_for_known():
     assert service_for("Microsoft Information Protection") == "Compliance/Security"
 
 
+def test_service_for_sonstiges():
+    assert service_for("Microsoft Clipchamp") == "Sonstiges"
+    assert service_for("Microsoft Stream") == "Sonstiges"
+
+
 def test_service_for_default():
     assert service_for("Microsoft Copilot (Microsoft 365)") == "Allgemein / M365 Admin"
     assert service_for("Excel") == "Allgemein / M365 Admin"

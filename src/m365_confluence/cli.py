@@ -109,6 +109,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "changes, default), or 'all'. The quarter dashboards are always created.",
     )
     parser.add_argument(
+        "--group-by",
+        choices=["service", "product"],
+        default="service",
+        help="Group the quarter dashboards by IT service (default) or by product.",
+    )
+    parser.add_argument(
         "--state-file",
         default="m365_state.json",
         help="Path to the local state file used for skip/slip tracking.",
@@ -288,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
                 config,
                 args.from_review,
                 dry_run=args.dry_run,
+                group_by=args.group_by,
                 title_prefix=args.title_prefix,
                 state_file=args.state_file,
                 changelog_file=args.changelog_file,
@@ -345,6 +352,7 @@ def main(argv: list[str] | None = None) -> int:
             dry_run=args.dry_run,
             force=args.force,
             item_pages=args.item_pages,
+            group_by=args.group_by,
             title_prefix=args.title_prefix,
             state_file=args.state_file,
             changelog_file=args.changelog_file,

@@ -47,6 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--state-file", default="m365_state.json")
     parser.add_argument("--axis", choices=["quarter", "month"], default="quarter")
+    parser.add_argument("--rows", choices=["service", "product"], default="service")
     parser.add_argument("--out", default="roadmap.drawio", help="Output .drawio file path.")
     parser.add_argument("--publish", action="store_true", help="Also publish/embed in Confluence.")
     parser.add_argument("--title-prefix", default="[M365] ")
@@ -57,9 +58,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"No items in {args.state_file}. Run a fetch first.", file=sys.stderr)
         return 1
 
-    xml = build_timeline(states, axis=args.axis)
+    xml = build_timeline(states, axis=args.axis, rows=args.rows)
     Path(args.out).write_text(xml, encoding="utf-8")
-    print(f"Wrote {args.out} ({len(states)} items, axis={args.axis}).")
+    print(f"Wrote {args.out} ({len(states)} items, axis={args.axis}, rows={args.rows}).")
 
     if args.publish:
         try:

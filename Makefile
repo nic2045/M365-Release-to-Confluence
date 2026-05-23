@@ -8,6 +8,7 @@ LIMIT ?= 5
 FORCE ?=
 FORCE_FLAG := $(if $(FORCE),--force,)
 AXIS ?= quarter
+ROWS ?= service
 # Pass any extra CLI flags through, e.g. ARGS="--product Teams --quarter 'Q3 2026' --major-only"
 ARGS ?=
 
@@ -60,8 +61,8 @@ publish-review:  ## Publish edited drafts from review.json to Confluence
 ui:  ## Launch the review/edit web UI (http://127.0.0.1:8765)
 	$(UI) --review-file review.json
 
-timeline:  ## Generate roadmap.drawio from state (AXIS=quarter|month, ARGS="--publish")
-	$(PY) -m m365_confluence.timeline_cli --axis $(AXIS) $(ARGS)
+timeline:  ## Generate roadmap.drawio from state (AXIS=quarter|month, ROWS=service|product, ARGS="--publish")
+	$(PY) -m m365_confluence.timeline_cli --axis $(AXIS) --rows $(ROWS) $(ARGS)
 
 clean:  ## Remove local state/changelog and caches
 	rm -f m365_state.json m365_changelog.json
