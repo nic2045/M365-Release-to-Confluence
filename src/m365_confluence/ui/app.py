@@ -88,12 +88,13 @@ INDEX_HTML = """<!doctype html>
 const DECISIONS=["Activate","Communicate","Monitor","Deactivate"];
 const CAT={planForChange:'Plan for Change',preventOrFixIssue:'Prevent/Fix Issue',stayInformed:'Stay Informed'};
 let drafts=[];
-let activeQ=null, activeChan=null;
+let activeQ=null, activeChan=null, activeProd=null;
 function setStatus(t){document.getElementById('status').textContent=t;}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 function uniq(vals){return [...new Set(vals)].sort();}
 function quartersOf(){return uniq(drafts.map(d=>d.edit.target_quarter||'—'));}
 function channelsOf(){const c=[];drafts.forEach(d=>(d.source.release_phases||[]).forEach(p=>c.push(p)));return uniq(c);}
+function productsOf(){const c=[];drafts.forEach(d=>(d.source.products||[]).forEach(p=>c.push(p)));return uniq(c);}
 function relevance(s){
   const parts=[];
   if(s.category&&CAT[s.category])parts.push(CAT[s.category]); else if(s.category&&s.category!=='roadmap')parts.push(s.category);
@@ -101,23 +102,26 @@ function relevance(s){
   if((s.tags||[]).includes('MajorChange'))parts.push('Major');
   return parts.join(' · ');
 }
+function chk(set,val,fn){return `<label class="fchk"><input type="checkbox" ${set.has(val)?'checked':''} onchange="${fn}('${val.replace(/'/g,"")}')"> ${esc(val)}</label>`;}
 function renderFilters(){
-  const qs=quartersOf(), chs=channelsOf();
+  const qs=quartersOf(), chs=channelsOf(), prs=productsOf();
   if(activeQ===null)activeQ=new Set(qs);
   if(activeChan===null)activeChan=new Set(chs);
-  const qhtml=qs.map(q=>`<label class="fchk"><input type="checkbox" ${activeQ.has(q)?'checked':''} onchange="toggle('q','${q.replace(/'/g,"")}')"> ${esc(q)}</label>`).join('');
-  const chtml=chs.length?('<span class="flabel">Channel:</span>'+chs.map(c=>`<label class="fchk"><input type="checkbox" ${activeChan.has(c)?'checked':''} onchange="toggle('c','${c.replace(/'/g,"")}')"> ${esc(c)}</label>`).join('')):'';
+  if(activeProd===null)activeProd=new Set(prs);
+  const qhtml=qs.map(q=>chk(activeQ,q,"toggleQ")).join('');
+  const phtml=prs.length?('<span class="flabel">Produkt:</span>'+prs.map(p=>chk(activeProd,p,"toggleP")).join('')):'';
+  const chtml=chs.length?('<span class="flabel">Channel:</span>'+chs.map(c=>chk(activeChan,c,"toggleC")).join('')):'';
   document.getElementById('filters').innerHTML=
-    `<div class="fgroup"><span class="flabel">Quartal:</span>${qhtml}</div><div class="fgroup">${chtml}</div>`;
+    `<div class="fgroup"><span class="flabel">Quartal:</span>${qhtml}</div>`
+    +`<div class="fgroup">${phtml}</div><div class="fgroup">${chtml}</div>`;
 }
-function toggle(kind,val){
-  const set=kind==='q'?activeQ:activeChan;
-  set.has(val)?set.delete(val):set.add(val);
-  render();
-}
+function flip(set,val){set.has(val)?set.delete(val):set.add(val);render();}
+function toggleQ(v){flip(activeQ,v);}
+function toggleC(v){flip(activeChan,v);}
+function toggleP(v){flip(activeProd,v);}
 async function load(){
   const r=await fetch('/api/drafts');const d=await r.json();drafts=d.items||[];
-  activeQ=null;activeChan=null;renderFilters();render();
+  activeQ=null;activeChan=null;activeProd=null;renderFilters();render();
   setStatus(drafts.length+' Einträge');
 }
 function field(label,val,onin,ml){
@@ -128,6 +132,8 @@ function passesFilters(it){
   if(activeQ && !activeQ.has(it.edit.target_quarter||'—'))return false;
   const phases=it.source.release_phases||[];
   if(activeChan && phases.length && !phases.some(p=>activeChan.has(p)))return false;
+  const prods=it.source.products||[];
+  if(activeProd && prods.length && !prods.some(p=>activeProd.has(p)))return false;
   return true;
 }
 function render(){
