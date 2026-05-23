@@ -50,6 +50,7 @@ INDEX_HTML = """<!doctype html>
  .chip.new{background:#e3fcef;color:#1f7a4d}
  .chip.upd{background:#fff8e1;color:#9a6b00}
  .chip.area{background:#e8eefc;color:#3b50b0}
+ .chip.svc{background:#e0f2f1;color:#00695c;font-weight:700}
  .genbar{max-width:980px;margin:10px auto 0;padding:12px 16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px}
  .genbar select,.genbar input[type=text],.genbar input[type=number]{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit}
  .gopt,.gchk{font-size:12px;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
@@ -180,7 +181,8 @@ function render(){
     const ct=s.change_type||'';
     const rel=relevance(s);
     const chips=
-       (e.areas||[]).map(a=>`<span class="chip area">${esc(a)}</span>`).join('')
+       (s.services||[]).map(v=>`<span class="chip svc">${esc(v)}</span>`).join('')
+      +(e.areas||[]).map(a=>`<span class="chip area">${esc(a)}</span>`).join('')
       +(s.status?`<span class="chip stage">Stufe: ${esc(s.status)}</span>`:'')
       +(ct?`<span class="chip ${ct==='Neu'?'new':'upd'}">${esc(ct)}</span>`:'')
       +(rel?`<span class="chip rel">Relevanz: ${esc(rel)}</span>`:'')

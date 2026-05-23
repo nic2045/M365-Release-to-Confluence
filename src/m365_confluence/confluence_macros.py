@@ -48,3 +48,15 @@ AREA_COLOURS = {
 
 def area_badges(areas: list[str]) -> str:
     return "".join(status_macro(AREA_COLOURS.get(a, "Grey"), a) for a in areas)
+
+
+SERVICE_COLOURS = {
+    "Exchange Online": "Blue",
+    "SharePoint Online": "Green",
+    "Teams": "Purple",
+    "Compliance/Security": "Red",
+}
+
+
+def service_badges(services: list[str]) -> str:
+    return "".join(status_macro(SERVICE_COLOURS.get(s, "Grey"), s) for s in services)

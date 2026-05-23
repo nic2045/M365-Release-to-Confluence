@@ -10,8 +10,14 @@ from __future__ import annotations
 import html
 import json
 
-from m365_confluence.confluence_macros import area_badges, cab_badge, decision_badge
+from m365_confluence.confluence_macros import (
+    area_badges,
+    cab_badge,
+    decision_badge,
+    service_badges,
+)
 from m365_confluence.models import ChangeItem, ProcessedItem
+from m365_confluence.services import services_for
 
 STANDARDS = """\
 You are a Microsoft 365 change manager. You turn raw M365 Message Center posts
@@ -242,6 +248,9 @@ def render_storage(item: ProcessedItem) -> str:
 
     area = f"<h2>Bereich</h2><p>{area_badges(item.areas)}</p>" if item.areas else ""
 
+    services = services_for(src.products)
+    service_html = f"<h2>Service</h2><p>{service_badges(services)}</p>"
+
     security_relevant = "Security" in item.areas
 
     def _yesno(value: bool) -> str:
@@ -279,6 +288,7 @@ def render_storage(item: ProcessedItem) -> str:
         f"<table><tbody>{meta_rows}</tbody></table>"
         f"<h2>Summary</h2><p>{esc(item.summary)}</p>"
         f"<h2>Impact</h2><p>{esc(item.impact)}</p>"
+        f"{service_html}"
         f"{area}"
         f"{decision}"
         f"{cab}"
