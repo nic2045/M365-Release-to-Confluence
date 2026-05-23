@@ -113,13 +113,20 @@ const DECISIONS=["Activate","Communicate","Monitor","Deactivate"];
 const AREAS=["End User","Admin / IT","Security","Compliance"];
 const CAT={planForChange:'Plan for Change',preventOrFixIssue:'Prevent/Fix Issue',stayInformed:'Stay Informed'};
 let drafts=[];
-let activeQ=null, activeChan=null, activeProd=null, activeArea=null;
+let activeQ=null, activeChan=null, activeProd=null, activeArea=null, activeSvc=null;
 function setStatus(t){document.getElementById('status').textContent=t;}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 function uniq(vals){return [...new Set(vals)].sort();}
 function quartersOf(){return uniq(drafts.map(d=>d.edit.target_quarter||'—'));}
 function channelsOf(){const c=[];drafts.forEach(d=>(d.source.release_phases||[]).forEach(p=>c.push(p)));return uniq(c);}
 function productsOf(){const c=[];drafts.forEach(d=>(d.source.products||[]).forEach(p=>c.push(p)));return uniq(c);}
+function servicesOf(){const c=[];drafts.forEach(d=>(d.source.services||[]).forEach(s=>c.push(s)));return uniq(c);}
+function prodServiceMap(){const m={};drafts.forEach(d=>Object.assign(m,d.source.product_services||{}));return m;}
+// Level 2: only products whose service (level 1) is currently active.
+function productsForActiveServices(){
+  const m=prodServiceMap();
+  return productsOf().filter(p=>!activeSvc||activeSvc.has(m[p]||'Allgemein / M365 Admin'));
+}
 function relevance(s){
   const parts=[];
   if(s.category&&CAT[s.category])parts.push(CAT[s.category]); else if(s.category&&s.category!=='roadmap')parts.push(s.category);
@@ -129,31 +136,42 @@ function relevance(s){
 }
 function chk(set,val,fn){return `<label class="fchk"><input type="checkbox" ${set.has(val)?'checked':''} onchange="${fn}('${val.replace(/'/g,"")}')"> ${esc(val)}</label>`;}
 function renderFilters(){
-  const qs=quartersOf(), chs=channelsOf(), prs=productsOf();
+  const qs=quartersOf(), chs=channelsOf(), svcs=servicesOf();
+  if(activeSvc===null)activeSvc=new Set(svcs);
   if(activeQ===null)activeQ=new Set(qs);
   if(activeChan===null)activeChan=new Set(chs);
-  if(activeProd===null)activeProd=new Set(prs);
   if(activeArea===null)activeArea=new Set(AREAS);
+  const prs=productsForActiveServices();           // level 2 depends on level 1
+  if(activeProd===null)activeProd=new Set(productsOf());
   const qhtml=qs.map(q=>chk(activeQ,q,"toggleQ")).join('');
   const ahtml=AREAS.map(a=>chk(activeArea,a,"toggleA")).join('');
-  const phtml=prs.length?('<span class="flabel">Produkt:</span>'+prs.map(p=>chk(activeProd,p,"toggleP")).join('')):'';
+  const shtml=svcs.length?('<span class="flabel">Service (1):</span>'+svcs.map(s=>chk(activeSvc,s,"toggleS")).join('')):'';
+  const phtml=prs.length?('<span class="flabel">Produkt (2):</span>'+prs.map(p=>chk(activeProd,p,"toggleP")).join('')):'';
   const chtml=chs.length?('<span class="flabel">Channel:</span>'+chs.map(c=>chk(activeChan,c,"toggleC")).join('')):'';
   document.getElementById('filters').innerHTML=
     `<div class="fgroup"><span class="flabel">Quartal:</span>${qhtml}</div>`
     +`<div class="fgroup"><span class="flabel">Bereich:</span>${ahtml}</div>`
-    +`<div class="fgroup">${phtml}</div><div class="fgroup">${chtml}</div>`;
+    +`<div class="fgroup">${shtml}</div><div class="fgroup">${phtml}</div>`
+    +`<div class="fgroup">${chtml}</div>`;
 }
 function flip(set,val){set.has(val)?set.delete(val):set.add(val);render();}
 function toggleQ(v){flip(activeQ,v);}
 function toggleC(v){flip(activeChan,v);}
 function toggleP(v){flip(activeProd,v);}
 function toggleA(v){flip(activeArea,v);}
+function toggleS(v){
+  activeSvc.has(v)?activeSvc.delete(v):activeSvc.add(v);
+  // keep product selection in sync: drop products whose service is now inactive
+  const m=prodServiceMap();
+  productsOf().forEach(p=>{ if(!activeSvc.has(m[p]||'Allgemein / M365 Admin')) activeProd.delete(p); else activeProd.add(p); });
+  renderFilters();render();
+}
 async function load(){
   populateQuarters('');
   try{const sr=await fetch('/api/settings');applySettings(await sr.json());}catch(e){}
   renderProductChecks([]);
   const r=await fetch('/api/drafts');const d=await r.json();drafts=d.items||[];
-  activeQ=null;activeChan=null;activeProd=null;activeArea=null;renderFilters();render();
+  activeQ=null;activeChan=null;activeProd=null;activeArea=null;activeSvc=null;renderFilters();render();
   setStatus(drafts.length+' Einträge');
 }
 function field(label,val,onin,ml){
@@ -162,10 +180,12 @@ function field(label,val,onin,ml){
 }
 function passesFilters(it){
   if(activeQ && !activeQ.has(it.edit.target_quarter||'—'))return false;
+  const svcs=it.source.services||[];
+  if(activeSvc && svcs.length && !svcs.some(s=>activeSvc.has(s)))return false;  // level 1
+  const prods=it.source.products||[];
+  if(activeProd && prods.length && !prods.some(p=>activeProd.has(p)))return false;  // level 2
   const phases=it.source.release_phases||[];
   if(activeChan && phases.length && !phases.some(p=>activeChan.has(p)))return false;
-  const prods=it.source.products||[];
-  if(activeProd && prods.length && !prods.some(p=>activeProd.has(p)))return false;
   const areas=it.edit.areas||[];
   if(activeArea && areas.length && !areas.some(a=>activeArea.has(a)))return false;
   return true;
@@ -288,7 +308,7 @@ async function generate(){
   const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d=await r.json();
   if(d.error){setStatus('Fehler: '+d.error);return;}
-  drafts=d.items||[];activeQ=null;activeChan=null;activeProd=null;activeArea=null;renderFilters();render();
+  drafts=d.items||[];activeQ=null;activeChan=null;activeProd=null;activeArea=null;activeSvc=null;renderFilters();render();
   setStatus(d.count+' Entwürfe erzeugt.');
 }
 async function loadProducts(){

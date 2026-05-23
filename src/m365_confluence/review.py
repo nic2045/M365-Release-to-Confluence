@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from m365_confluence.models import ChangeItem, ProcessedItem
-from m365_confluence.services import services_for
+from m365_confluence.services import service_for, services_for
 
 
 def _dt(value: datetime | None) -> str | None:
@@ -47,6 +47,7 @@ def draft_from(item: ChangeItem, processed: ProcessedItem, make_page: bool) -> d
             "status": item.status,
             "products": list(item.products),
             "services": services_for(item.products),
+            "product_services": {p: service_for(p) for p in item.products},
             "tags": list(item.tags),
             "release_phases": list(item.release_phases),
             "cloud_instances": list(item.cloud_instances),

@@ -68,3 +68,15 @@ def test_draft_from_sets_ignored_false():
     item, processed = _pair()
     draft = draft_from(item, processed, make_page=True)
     assert draft["ignored"] is False
+
+
+def test_draft_includes_services_and_map():
+    from m365_confluence.models import ChangeItem, ProcessedItem
+
+    item = ChangeItem(id="1", source="roadmap", title="t", body="b", products=["Outlook", "Teams"])
+    draft = draft_from(
+        item, ProcessedItem(source_item=item, summary="", impact="", audience=""), False
+    )
+    assert "Exchange Online" in draft["source"]["services"]
+    assert draft["source"]["product_services"]["Outlook"] == "Exchange Online"
+    assert draft["source"]["product_services"]["Teams"] == "Teams"
