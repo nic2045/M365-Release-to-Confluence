@@ -62,3 +62,33 @@ def test_publish_skips_ignored(tmp_path):
     client.post("/api/drafts", json={"items": [d1, d2]})
     r = client.post("/api/publish", json={"dry_run": True})
     assert r.json()["processed"] == 1  # ignored one excluded
+
+
+def test_products_endpoint(tmp_path, monkeypatch):
+    import m365_confluence.pipeline as pipeline
+
+    monkeypatch.setattr(
+        pipeline, "collect_products", lambda config: [("Teams", 3), ("Exchange", 1)]
+    )
+    client = TestClient(create_app(str(tmp_path / "review.json")))
+    r = client.get("/api/products?source=roadmap")
+    assert r.status_code == 200
+    assert r.json()["products"][0] == {"name": "Teams", "count": 3}
+
+
+def test_generate_endpoint(tmp_path, monkeypatch):
+    import m365_confluence.pipeline as pipeline
+    from m365_confluence.review import save_drafts
+
+    path = tmp_path / "review.json"
+
+    def fake_run(config, **kwargs):
+        assert kwargs["review_out"] == str(path)
+        save_drafts(str(path), [_draft()])
+        return None
+
+    monkeypatch.setattr(pipeline, "run", fake_run)
+    client = TestClient(create_app(str(path)))
+    r = client.post("/api/generate", json={"source": "roadmap", "limit": 5})
+    assert r.status_code == 200
+    assert r.json()["count"] == 1

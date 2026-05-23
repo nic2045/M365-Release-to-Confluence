@@ -49,6 +49,9 @@ INDEX_HTML = """<!doctype html>
  .chip.new{background:#e3fcef;color:#1f7a4d}
  .chip.upd{background:#fff8e1;color:#9a6b00}
  .chip.area{background:#e8eefc;color:#3b50b0}
+ .genbar{max-width:980px;margin:10px auto 0;padding:12px 16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px}
+ .genbar select,.genbar input[type=text],.genbar input[type=number]{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit}
+ .gopt,.gchk{font-size:12px;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
  .filters{max-width:980px;margin:6px auto 0;padding:10px 24px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
  .fgroup{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
  .flabel{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
@@ -82,6 +85,20 @@ INDEX_HTML = """<!doctype html>
   <span><b>2.</b> Bearbeiten oder <b>Ignorieren</b></span>
   <span><b>3.</b> Speichern</span>
   <span><b>4.</b> Veröffentlichen (ignorierte werden ausgelassen)</span>
+</div>
+<div class="genbar">
+  <span class="flabel">Entwürfe erzeugen:</span>
+  <select id="g_source"><option value="roadmap">Roadmap</option><option value="message-center">Message Center</option><option value="both">Beide</option></select>
+  <label class="gopt">Limit <input type="number" id="g_limit" min="1" style="width:64px" value="20"></label>
+  <label class="gopt">Produkte <input type="text" id="g_products" placeholder="Teams, Exchange" style="width:160px"></label>
+  <label class="gopt">Quartal <input type="text" id="g_quarter" placeholder="Q3 2026" style="width:90px"></label>
+  <label class="gchk"><input type="checkbox" id="g_ww" checked> Worldwide</label>
+  <label class="gchk"><input type="checkbox" id="g_new" checked> nur neue Rollouts</label>
+  <label class="gchk"><input type="checkbox" id="g_major"> nur Major</label>
+  <label class="gchk"><input type="checkbox" id="g_action"> Action req.</label>
+  <label class="gchk"><input type="checkbox" id="g_force"> Force</label>
+  <button onclick="generate()">Erzeugen (KI)</button>
+  <button class="ghost" style="color:#0a5bd6;background:#eef1f5" onclick="loadProducts()">Produkte laden</button>
 </div>
 <div id="filters" class="filters"></div>
 <main id="list"></main>
@@ -196,6 +213,36 @@ function upd(i,k,v){drafts[i].edit[k]=v;}
 function updTop(i,k,v){drafts[i][k]=v;}
 function toggleItemArea(i,a){const e=drafts[i].edit;e.areas=e.areas||[];const x=e.areas.indexOf(a);x>=0?e.areas.splice(x,1):e.areas.push(a);render();}
 function toggleIgnore(i){drafts[i].ignored=!drafts[i].ignored;render();}
+function csv(id){return document.getElementById(id).value.split(',').map(s=>s.trim()).filter(Boolean);}
+async function generate(){
+  const limit=parseInt(document.getElementById('g_limit').value)||null;
+  const body={
+    source:document.getElementById('g_source').value,
+    limit:limit,
+    products:csv('g_products'),
+    quarter:document.getElementById('g_quarter').value.trim(),
+    worldwide_only:document.getElementById('g_ww').checked,
+    new_rollouts_only:document.getElementById('g_new').checked,
+    major_only:document.getElementById('g_major').checked,
+    action_required:document.getElementById('g_action').checked,
+    force:document.getElementById('g_force').checked,
+  };
+  setStatus('Erzeuge Entwürfe via KI… (kann etwas dauern)');
+  const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(d.error){setStatus('Fehler: '+d.error);return;}
+  drafts=d.items||[];activeQ=null;activeChan=null;activeProd=null;activeArea=null;renderFilters();render();
+  setStatus(d.count+' Entwürfe erzeugt.');
+}
+async function loadProducts(){
+  const source=document.getElementById('g_source').value;
+  setStatus('Lade Produkte…');
+  const r=await fetch('/api/products?source='+encodeURIComponent(source));
+  const d=await r.json();
+  if(d.error){setStatus('Fehler: '+d.error);return;}
+  const names=(d.products||[]).map(p=>p.name+' ('+p.count+')').join(', ');
+  setStatus((d.products||[]).length+' Produkte: '+names);
+}
 async function save(){
   setStatus('Speichere…');
   await fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:drafts})});
@@ -235,6 +282,61 @@ def create_app(review_file: str) -> FastAPI:
         items = data.get("items", [])
         save_drafts(review_file, items)
         return {"saved": len(items)}
+
+    @app.post("/api/generate")
+    async def generate(request: Request):
+        from m365_confluence.config import Config, ConfigError
+        from m365_confluence.pipeline import run
+
+        body = await request.json()
+        source = body.get("source", "roadmap")
+        use_mc = source in {"both", "message-center"}
+        use_rm = source in {"both", "roadmap"}
+        try:
+            config = Config.load(
+                use_message_center=use_mc,
+                use_roadmap=use_rm,
+                require_confluence=False,
+            )
+            run(
+                config,
+                since_days=body.get("since_days"),
+                limit=body.get("limit"),
+                quarter=body.get("quarter") or None,
+                major_only=bool(body.get("major_only")),
+                action_required=bool(body.get("action_required")),
+                products=body.get("products") or None,
+                categories=body.get("categories") or None,
+                worldwide_only=bool(body.get("worldwide_only", True)),
+                new_rollouts_only=bool(body.get("new_rollouts_only", True)),
+                force=bool(body.get("force")),
+                review_out=review_file,
+            )
+        except (ConfigError, FileNotFoundError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        except Exception as exc:  # surface upstream/LLM errors to the UI
+            return JSONResponse({"error": str(exc)}, status_code=500)
+        items = load_drafts(review_file) if Path(review_file).exists() else []
+        return {"items": items, "count": len(items)}
+
+    @app.get("/api/products")
+    def products(source: str = "roadmap"):
+        from m365_confluence.config import Config, ConfigError
+        from m365_confluence.pipeline import collect_products
+
+        use_mc = source in {"both", "message-center"}
+        use_rm = source in {"both", "roadmap"}
+        try:
+            config = Config.load(
+                use_message_center=use_mc,
+                use_roadmap=use_rm,
+                require_confluence=False,
+            )
+            return {"products": [{"name": n, "count": c} for n, c in collect_products(config)]}
+        except ConfigError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=500)
 
     @app.post("/api/publish")
     async def publish(request: Request):
