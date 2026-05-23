@@ -1,0 +1,47 @@
+# Local/prod convenience. Secrets come from .env (never bake them into the image).
+# State, changelog and review.json persist in ./data (mounted at /data).
+
+services:
+  # Long-running review/edit UI: http://localhost:8765
+  ui:
+    build: .
+    image: m365-release-to-confluence
+    command:
+      - m365-to-confluence-ui
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8765"
+      - --review-file
+      - /data/review.json
+    ports:
+      - "8765:8765"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+
+  # One-shot draft refresh (no Confluence write — approval happens in the UI).
+  # Not started by `up`; run it explicitly:  docker compose run --rm job
+  job:
+    build: .
+    image: m365-release-to-confluence
+    profiles:
+      - manual
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    command:
+      - m365-to-confluence
+      - --source
+      - roadmap
+      - --since-days
+      - "30"
+      - --review-out
+      - /data/review.json
+      - --state-file
+      - /data/m365_state.json
+      - --changelog-file
+      - /data/m365_changelog.json

@@ -1,0 +1,64 @@
+/* M365 review module — view-specific styling layered on the shared
+ * design-system (tokens + components + shell). No design primitives here;
+ * only the structure unique to the review/generate/publish workspace. */
+
+/* Step hints under the header. */
+.m365-steps { max-width:1040px; margin:14px auto 0; padding:0 24px; color:var(--text2); font-size:13px; display:flex; gap:18px; flex-wrap:wrap; }
+.m365-steps b { color:var(--text); }
+.m365-steps code { background:var(--surface3); border:1px solid var(--line-soft); border-radius:6px; padding:1px 6px; font-size:12px; }
+
+/* Generate bar. */
+.genbar { background:var(--surface); border:1px solid var(--line-soft); border-radius:18px; box-shadow:var(--shadow-soft); padding:12px 16px; }
+.genbar select, .genbar input[type=text], .genbar input[type=number] { width:auto; }
+.gopt, .gchk { font-size:12px; color:var(--text); display:inline-flex; align-items:center; gap:6px; }
+.gchk input, .gopt input[type=checkbox] { width:auto; }
+.pbox { display:flex; gap:6px; flex-wrap:wrap; align-items:center; max-height:120px; overflow:auto; width:100%; }
+.flabel { font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text2); }
+.flabel.sub { text-transform:none; color:var(--tab-planner); margin-left:8px; }
+
+/* Filter rows. */
+.filters { max-width:1040px; margin:6px auto 0; padding:8px 24px 0; display:flex; gap:18px; flex-wrap:wrap; align-items:center; width:100%; }
+.fgroup { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.fchk { font-size:12px; color:var(--text); display:inline-flex; align-items:center; gap:4px; background:var(--surface); border:1px solid var(--line-soft); border-radius:16px; padding:3px 10px; cursor:pointer; user-select:none; }
+.fchk:hover { border-color:color-mix(in srgb, var(--accent) 30%, var(--line-soft) 70%); }
+.fchk input { width:auto; }
+
+/* Cards. */
+.card.ignored { opacity:.5; }
+.chead { display:flex; align-items:center; gap:10px; padding:14px 18px; background:color-mix(in srgb, var(--surface2) 60%, transparent); border-bottom:1px solid var(--line-soft); }
+.num { flex:none; width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.card.ignored .num { background:var(--text2); }
+.ctitle { flex:1; min-width:0; }
+.ctitle input { width:100%; border:0; background:transparent; font-size:16px; font-weight:650; color:var(--text); padding:2px 0; border-radius:0; }
+.ctitle input:focus { outline:0; border-bottom:2px solid var(--accent); box-shadow:none; }
+.src { font-size:11px; color:var(--text2); margin-top:2px; }
+.cbody { padding:16px 18px; }
+.cbody .row { display:flex; gap:16px; flex-wrap:wrap; }
+.cbody .row > div { flex:1; min-width:200px; }
+.cbody label { display:block; font-size:11px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; color:var(--text2); margin:10px 0 3px; }
+.check { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:500; color:var(--text); text-transform:none; letter-spacing:0; }
+.check input { width:auto; }
+
+/* Chips. */
+.chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.chip { background:color-mix(in srgb, var(--surface2) 80%, transparent); color:var(--text2); border-radius:20px; padding:2px 10px; font-size:11px; font-weight:600; border:1px solid var(--line-soft); }
+.chip.stage { background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent); border-color:transparent; }
+.chip.rel { background:#fff3e0; color:#b25e00; border-color:transparent; }
+.chip.chan { background:#ece9fb; color:#5b3fc4; border-color:transparent; }
+.chip.new { background:#e3fcef; color:#1f7a4d; border-color:transparent; }
+.chip.upd { background:#fff8e1; color:#9a6b00; border-color:transparent; }
+.chip.area { background:color-mix(in srgb, var(--tab-reports) 16%, transparent); color:var(--tab-reports); border-color:transparent; }
+.chip.svc { background:color-mix(in srgb, var(--tab-planner) 16%, transparent); color:var(--tab-planner); border-color:transparent; font-weight:700; }
+
+/* Decision pill. */
+.dec { display:inline-block; padding:3px 10px; border-radius:8px; font-size:12px; font-weight:700; color:#fff; }
+.Activate { background:var(--ok); }
+.Communicate { background:var(--accent); }
+.Monitor { background:var(--warn); }
+.Deactivate { background:var(--danger); }
+
+/* Ignore button. */
+.ignbtn { background:color-mix(in srgb, var(--surface2) 80%, transparent); color:var(--text2); border:1px solid var(--line-soft); border-radius:10px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; }
+.card.ignored .ignbtn { background:var(--accent); color:#fff; border-color:transparent; }
+
+.meta { font-size:12px; color:var(--text2); }

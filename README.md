@@ -1,402 +1,215 @@
-# dotfiles
+# M365 Release to Confluence
 
-Personal environment configuration — Claude Code instructions for all projects.
+> Read current changes and upcoming rollouts from the Microsoft 365 platform,
+> summarise them with an LLM, and publish them to Confluence following your standards.
 
-## Structure
+The tool pulls from **two sources**, merges and de-duplicates them, runs each
+item through a **pluggable LLM**, and writes a consistent change note to
+**Confluence Server / Data Center** (one page per item, idempotent on rerun).
 
 ```
-dotfiles/
-  claude/
-    CLAUDE.md              # Global instructions — loaded for every project
-    projects/
-      ha-garden-water.md   # HA blueprint rules, versioning convention
-      JIRA_WeeklyUpdater.md
-      Script-Libary.md
-      SW-Deployment.md
-      ADGroupChecker.md
-      PS-Script-Libary.md
-      MDT.md
-      RSG-Intune.md
-  git-templates/
-    hooks/
-      post-checkout        # Auto-links CLAUDE.md on git clone
-  gitconf/
-    gitignore_global       # Global gitignore (macOS, Windows, Editor, Secrets)
-  setup.sh                 # Run once on a new machine
-  add-project.sh           # Add a new project and link it immediately
+Message Center (Graph) ─┐
+                        ├─► aggregate ─► LLM (Anthropic | Azure OpenAI | local) ─► Confluence
+M365 roadmap (public) ──┘
 ```
 
-## Architecture
+## Sources
 
-Source of truth: `dotfiles` repo on GitHub
-├── claude/CLAUDE.md → copied to ~/.claude/CLAUDE.md (global)
-├── claude/projects/*.md → symlinked to ~/Coding/<project>/CLAUDE.md (per-project)
-├── git-templates/hooks/post-checkout → installed to ~/.git-templates (auto-link on clone)
-├── gitconf/gitignore_global → configured as core.excludesfile (all repos)
-└── vscode-extensions/dotfiles-check → auto-sync every 6 hours
+| Source | What it provides | Auth |
+| --- | --- | --- |
+| **Message Center** (`/admin/serviceAnnouncement/messages`) | Tenant-specific changes & rollouts | Entra ID app with `ServiceMessage.Read.All` |
+| **M365 roadmap** (`releasecommunications/api`) | Public upcoming rollouts | none |
 
-How it flows:
-1. Clone dotfiles repo → run setup.sh once
-2. setup.sh creates symlinks to all known projects
-3. VSCode extension runs in background: every 6h, fetch origin → pull if behind
-4. Edit any dotfiles file → change propagates via symlink to all repos
-5. Multiple machines: all run VSCode extension → all sync to same GitHub state
+## AI backends (pluggable)
 
-## How it works
+Set `AI_PROVIDER` to one of:
 
-- **Global** (`~/.claude/CLAUDE.md`) — Claude Code loads this automatically for every project. Contains cross-project rules and preferences.
-- **Per-project** (`<repo>/CLAUDE.md`) — Claude Code loads this when working in a specific repo. Symlinked from `dotfiles/claude/projects/` so there is a single source of truth.
-- **Global gitignore** — Applied to every git repo without touching project `.gitignore` files.
-- **post-checkout hook** — Fires automatically after `git clone` for any `nic2045` repo and calls `add-project.sh` to link `CLAUDE.md` if none exists yet.
-- **Symlinks everywhere** — Editing a file in `dotfiles/` immediately takes effect everywhere via the symlink — no copy needed.
-- **Background sync** — VSCode extension `dotfiles-check` runs every 6 hours: fetch origin, detect if behind, auto-stash local changes, pull. Status shown in status bar.
+- `anthropic` — Claude via the Anthropic SDK (prompt caching enabled).
+- `azure_openai` — an Azure OpenAI deployment.
+- `local` — any OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, ...).
 
----
+The house style for every change note lives in one place —
+`STANDARDS` in [`src/m365_confluence/ai/prompts.py`](src/m365_confluence/ai/prompts.py).
+Edit it to match your wording, structure and required fields.
 
-## Setup Flow
-
-What `bash ~/dotfiles/setup.sh` does:
-
-1. Copy global instructions
-   ~/.claude/CLAUDE.md ← ~/dotfiles/claude/CLAUDE.md (symlink, absolute path)
-
-2. Configure git globally
-   core.excludesfile → dotfiles/gitconf/gitignore_global
-   alias.ignored → custom git alias
-   dotfiles.dir → dotfiles repo location (used by git hooks)
-
-3. Install git hook template
-   ~/.git-templates/hooks/post-checkout ← dotfiles/git-templates/hooks/post-checkout
-   init.templateDir → ~/.git-templates
-   (will run on future `git clone` for nic2045 repos)
-
-4. Create relative symlinks for all known projects
-   For each project in dotfiles/claude/projects/:
-   If ~/Coding/<project>/ exists:
-     → symlink ~/Coding/<project>/CLAUDE.md to ../dotfiles/claude/projects/<project>.md (relative)
-     → uses Python to calculate optimal relative path
-     → if Python unavailable, falls back to standard layout path
-   Else:
-     → skip with warning
-
-Result: All symlinks created. Future git clones auto-link via post-checkout hook.
-
-5. Install VSCode extension separately (see next section)
-
-## VSCode Extension: vscode-dotfiles-check
-
-The background sync extension lives in a separate repo (no circular dependency).
-
-**Install from source** (during development):
-```bash
-git clone git@github.com:nic2045/vscode-dotfiles-check.git ~/Coding/vscode-dotfiles-check
-bash ~/Coding/vscode-dotfiles-check/install.sh
-```
-
-**Or install from VSCode Marketplace** (when available):
-Extensions → Search "Dotfiles Check" → Install
-
-The extension will:
-- Run on VSCode startup
-- Schedule 6h background syncs of ~/Coding/dotfiles
-- Auto-pull if behind origin/main
-- Show status in status bar, notifications on sync
-
-## Symlink Logic
-
-All files in dotfiles repo are symlinked, not copied. Single source of truth.
-
-**macOS / Linux / Windows (Git Bash)** — Relative symlinks:
-Scripts automatically create relative symlinks:
-```
-~/Coding/ha-garden-water/CLAUDE.md → ../dotfiles/claude/projects/ha-garden-water.md
-```
-Relative paths are portable: work on any machine without path adjustment.
-
-How setup.sh does it:
-1. Calculate relative path from target to source using Python
-2. Create symlink with relative path
-3. Fallback: use `../dotfiles/claude/projects/...` for standard layout
-
-**Windows (PowerShell without Developer Mode)** — Manual step required:
-Symlinks require Developer Mode on Windows. If unavailable, create hard link manually:
-```powershell
-New-Item -ItemType HardLink `
-  -Path "C:\Users\<user>\Coding\ha-garden-water\CLAUDE.md" `
-  -Target "C:\Users\<user>\Coding\dotfiles\claude\projects\ha-garden-water.md"
-```
-Caveat: `git pull` in dotfiles rewrites files (new inode) → hard link breaks. Re-create if needed.
-
-**Edit strategy**: Edit in the symlink (project repo) or in source (dotfiles repo) — both stay in sync automatically via symlink.
-
----
-
-## Background Sync: dotfiles-check Extension
-
-Logic:
-
-VSCode startup
-→ dotfiles-check extension activates
-→ verify dotfiles exists
-→ show status in status bar
-→ schedule background task: every 6 hours
-
-Every 6 hours:
-1. cd ~/Coding/dotfiles
-2. Check git status
-   - Has local changes? Auto-stash them (safe save)
-   - Clean? Continue
-3. git fetch origin main (check what's new)
-4. Compare local HEAD vs origin/main
-   - Behind? Pull the changes
-   - Up-to-date? Skip
-5. Update status bar icon and log
-
-User can also:
-- Click status bar icon → sync immediately
-- Command Palette → "Dotfiles: Sync Now"
-
-Notifications appear:
-- ✓ Dotfiles synced (success)
-- ⚠ Sync failed: <reason> (error)
-
-Full log visible in View → Output → "Dotfiles Check"
-
----
-
-## Multi-Machine Sync Example
-
-Scenario: Two machines, both running VSCode with dotfiles-check extension.
-
-Initial state:
-  Machine A (macOS): ~/Coding/dotfiles cloned, setup.sh run
-  Machine B (Linux): ~/Coding/dotfiles cloned, setup.sh run
-  Both: VSCode installed with dotfiles-check extension
-  GitHub: origin/main HEAD = commit X
-
-Timeline:
-
-Step 1 — Machine A makes a change
-  User edits ~/Coding/dotfiles/claude/CLAUDE.md (or via symlink in any project)
-  Machine A commits & pushes
-  GitHub: origin/main HEAD = commit Y
-
-Step 2 — Machine A's extension syncs
-  Next background sync: fetch origin → already at origin/main
-  No action needed
-
-Step 3 — Machine B's extension syncs (6h later, or user clicks manually)
-  Background sync: fetch origin → sees origin/main = commit Y
-  Machine B HEAD = commit X (behind)
-  Auto-pull: git pull origin main
-  Local files updated
-  Symlinks propagate changes to all projects
-  Notification: ✓ Dotfiles synced
-  ~/.claude/CLAUDE.md automatically reflects Machine A's edit
-
-Result: Both machines in sync, single source of truth on GitHub.
-
----
-
-## Setup: macOS / Linux
-
-Prerequisites: Git, Claude Code CLI, Python 3 (for relative path calculation).
+## Setup
 
 ```bash
-git clone git@github.com:nic2045/dotfiles.git ~/Coding/dotfiles
-bash ~/Coding/dotfiles/setup.sh
+pip install -e ".[dev]"     # or ".[all]" for runtime only
+cp .env.example .env        # then fill in the values (.env is gitignored)
 ```
 
-`setup.sh` autodetects your environment and:
-1. Symlinks `~/.claude/CLAUDE.md` → `~/Coding/dotfiles/claude/CLAUDE.md`
-2. Sets git config: `core.excludesfile`, `alias.ignored`, `dotfiles.dir`
-3. Installs `git-templates/hooks/post-checkout` for auto-linking on future clones
-4. Creates relative symlinks for all known projects at `~/Coding/<repo-name>`
-5. Installs VSCode extension (reads version from package.json)
+## Usage
 
-Repos are expected at `~/Coding/<repo-name>`. Missing repos are skipped with a warning.
-
-If Python is unavailable, setup falls back to standard relative path format (`../dotfiles/...`).
-
-Verify symlinks were created correctly:
-```bash
-readlink ~/Coding/ha-garden-water/CLAUDE.md
-# Should show relative path like: ../dotfiles/claude/projects/ha-garden-water.md
-```
-
----
-
-## Setup: Windows
-
-### Option A: Git Bash (Recommended)
-
-**Prerequisites**: 
-- Git for Windows (includes Git Bash)
-- Claude Code CLI
-- Developer Mode (recommended, but setup works without it)
-- Python 3
-
-**Activate Developer Mode** (one-time, no reboot needed):
-```powershell
-reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v AllowDevelopmentWithoutDevLicense /d 1
-```
-
-Or manually: Settings → System → For developers → Developer Mode → On.
-
-**Install dotfiles** — Open **Git Bash** (not PowerShell or CMD):
-```bash
-git clone git@github.com:nic2045/dotfiles.git ~/Coding/dotfiles
-bash ~/Coding/dotfiles/setup.sh
-```
-
-`setup.sh` detects Windows and runs the same logic as macOS:
-- Creates relative symlinks (if Developer Mode active)
-- If Developer Mode inactive: symlinks still created (Git Bash can use them), but PowerShell cannot see them
-
-**Verify symlinks**:
-```bash
-# Git Bash
-readlink ~/Coding/ha-garden-water/CLAUDE.md
-# Should show: ../dotfiles/claude/projects/ha-garden-water.md
-```
-
-### Option B: PowerShell (Manual Symlinks)
-
-If you prefer PowerShell or cannot use Developer Mode, create symlinks manually:
-
-```powershell
-# For each project:
-New-Item -ItemType SymbolicLink `
-  -Path "C:\Users\<username>\Coding\ha-garden-water\CLAUDE.md" `
-  -Target "C:\Users\<username>\Coding\dotfiles\claude\projects\ha-garden-water.md"
-```
-
-Run `setup.sh` in Git Bash for everything else (git config, hooks, etc.).
-
-### Hard Link Fallback (Developer Mode Unavailable)
-
-If symbolic links fail, create hard links (manual, one-time):
-```powershell
-New-Item -ItemType HardLink `
-  -Path "C:\Users\<username>\Coding\<repo>\CLAUDE.md" `
-  -Target "C:\Users\<username>\Coding\dotfiles\claude\projects\<repo>.md"
-```
-
-**Caveat**: Hard links break when `git pull` rewrites dotfiles (new inode). Re-create them after pulling.
-
-### Path Mapping
-
-Git Bash on Windows:
-- `~` = `C:\Users\<username>` (from `$HOME`)
-- `~/Coding/` = `C:\Users\<username>\Coding\`
-
-If your repos are at `C:\Users\<username>\Documents\Coding\`, either:
-1. Move repos to `~/Coding/` (recommended)
-2. Edit `setup.sh` and change `CODING_DIR` lines
-
----
-
-## Integrating into an existing setup
-
-If git repos and config already exist on the machine, run `setup.sh` only after resolving the conflicts below. The script is otherwise safe to re-run.
-
-### 1 — Existing `~/.claude/CLAUDE.md`
-
-`setup.sh` overwrites this file with a plain `cp`. If a custom `CLAUDE.md` already exists:
+> **Safe by default: nothing is written to Confluence without human approval.**
+> A normal run only produces editable drafts (`review.json`). Publishing happens via the
+> review UI ("Publish"), `--from-review`, or an explicit `--approve` on the command line.
 
 ```bash
-# Compare before running setup
-diff ~/.claude/CLAUDE.md ~/dotfiles/claude/CLAUDE.md
+# Preview only, never writes:
+m365-to-confluence --since-days 30 --dry-run -v
+
+# Default run -> writes drafts to review.json, publishes NOTHING:
+m365-to-confluence --source roadmap --limit 10
+
+# Explicitly approve publishing to Confluence (e.g. an ad-hoc human run):
+m365-to-confluence --source roadmap --limit 10 --approve
 ```
 
-Merge any local additions into `dotfiles/claude/CLAUDE.md` first, commit them, then run `setup.sh`.
+| Flag | Description |
+| --- | --- |
+| `--source {both,message-center,roadmap}` | Which source(s) to read (default `both`). |
+| `--since-days N` | Only items modified within the last N days. |
+| `--limit N` | Cap the number of items processed (e.g. `--limit 3` while developing). |
+| `--quarter "Q3 2026"` | Only items detected for that target quarter. |
+| `--major-only` | Only Message Center items flagged as a major change. |
+| `--action-required` | Only items with an action-required deadline. |
+| `--product NAME` | Only items touching this product (repeatable, substring, e.g. `--product Teams`). |
+| `--list-products` | List products found in the source(s) with counts, then exit (no LLM/Confluence). |
+| `--pick-products` | Interactively multi-select products before running (numbers, ranges, or `all`). |
+| `--category NAME` | Only items in this MC category (repeatable, e.g. `planForChange`). |
+| `--worldwide-only` / `--no-worldwide-only` | Roadmap: keep only the Worldwide cloud instance. **On by default**; opt out with `--no-worldwide-only`. |
+| `--new-rollouts-only` / `--no-new-rollouts-only` | Roadmap: only items that newly reached rollout/live (Rolling out / Launched / Generally Available) since the last run. **On by default**. |
+| `--force` | Reprocess everything, ignoring the unchanged-item cache. |
+| `--confirm-over N` | Ask for confirmation before sending more than N items to the LLM (default 15). |
+| `-y`, `--yes` | Skip the confirmation prompt (non-interactive/CI). |
+| `--item-pages {none,major,all}` | Individual page per feature: none, only major changes (default), or all. Dashboards are always created. |
+| `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |
+| `--changelog-file PATH` | Local changelog file driving the Changelog page (default `m365_changelog.json`). |
+| `--title-prefix` | Prefix for generated page titles (default `[M365] `). |
+| `--review-out PATH` | Process items and write editable drafts to PATH; publish nothing. |
+| `--from-review PATH` | Publish edited drafts from PATH to Confluence without calling the LLM. |
+| `--approve` | Explicit human approval to write to Confluence. Without it a run only writes drafts. |
+| `--dry-run` | Process but do not write to Confluence (and do not save state). |
+| `-v` | Debug logging for this tool. |
+| `--debug-http` | Also show raw HTTP logs from httpx/anthropic/openai. |
 
-### 2 — Existing global gitignore (`core.excludesfile`)
+## Quarters, slip detection & dashboards
 
-`setup.sh` sets `core.excludesfile` to `dotfiles/gitconf/gitignore_global`. Any previously configured file is replaced. Check first:
+- Each note gets a **target quarter** (LLM-derived, with a regex/date hint) and an
+  **evergreen decision** (`Activate` / `Deactivate` / `Communicate` / `Monitor`) with a rationale.
+- A local **state file** records a content hash per item, so **unchanged items are skipped**
+  on later runs (saves tokens). Use `--force` to override.
+- When an item's target quarter moves later than last seen, it is flagged as a **slip**
+  (warning banner on the page; marked on the dashboard).
+- A **per-quarter dashboard page** is created/updated listing all features of that quarter
+  (with a short description column, so it stands on its own without per-feature pages).
+- By default an **individual page is only created for major changes** (`--item-pages major`);
+  use `none` for dashboards-only or `all` for a page per feature.
+- The decision shows as a **coloured status badge** (Activate=green, Communicate=blue, Monitor=yellow, Deactivate=red); slips get a red badge.
+- A **Changelog page** records each run's new/changed/slipped counts.
+
+## Saving tokens
+
+- Unchanged items are skipped automatically (state file); only new/changed items hit the LLM.
+- The system prompt is sent with **prompt caching** (Anthropic) so the standards block is cheap to reuse.
+- Use `--since-days`, `--limit`, a cheaper model (`ANTHROPIC_MODEL=claude-haiku-4-5`) or `AI_PROVIDER=local`.
+
+## Review & edit before publishing
+
+A human-in-the-loop workflow: generate drafts, edit them (CLI or web UI), then publish
+without re-running the LLM.
 
 ```bash
-git config --global core.excludesfile
+# 1. Generate editable drafts (no Confluence write, no creds needed)
+m365-to-confluence --source roadmap --review-out review.json
+
+# 2a. Edit review.json by hand, OR
+# 2b. Launch the web UI to review/edit (needs the 'ui' extra)
+m365-to-confluence-ui --review-file review.json   # http://127.0.0.1:8765
+
+# 3. Publish the edited drafts (no LLM call)
+m365-to-confluence --from-review review.json
 ```
 
-If a file is already set, copy its contents into `dotfiles/gitconf/gitignore_global`, commit, then run `setup.sh`.
+The UI lets you edit title, target quarter, decision, CAB flag/recommendation, summary,
+impact and recommended action per item, then **Save** and **Publish** (with a dry-run toggle).
 
-### 3 — Existing `init.templateDir`
+## Configuration
 
-`setup.sh` sets `init.templateDir` to `~/.git-templates`. If another template dir is already configured:
+All configuration is via environment variables (see `.env.example`):
+
+- **Graph:** `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET`
+- **AI:** `AI_PROVIDER`, `OUTPUT_LANGUAGE`, the keys for the chosen backend, and optional
+  `ORG_CONTEXT` / `ORG_CONTEXT_FILE` to tailor recommendations to your environment
+- **Confluence:** `CONFLUENCE_BASE_URL`, `CONFLUENCE_TOKEN` (PAT — `ConfluencePAT` also accepted), `CONFLUENCE_SPACE`, `CONFLUENCE_PARENT_PAGE_ID`
+
+## Development
 
 ```bash
-git config --global init.templateDir
+make dev        # editable install with all extras
+make check      # lint + format check + tests (what CI runs)
+make dry-run    # preview a run without writing to Confluence
+make products   # discovery: list products in the source(s)
+make pick       # interactively pick products, then process
+make help       # list all targets
 ```
 
-If it points somewhere else, either copy relevant hooks from there into `~/.git-templates/hooks/` after setup, or manually merge hook logic into `dotfiles/git-templates/hooks/post-checkout`.
-
-### 4 — Existing repos (already cloned before dotfiles setup)
-
-The `post-checkout` hook only fires on **new** clones. Repos that already exist on the machine get no symlink automatically. Link them manually:
+Filters and discovery work through make too. Pass any CLI flags via `ARGS`:
 
 ```bash
-# macOS / Git Bash on Windows
-bash ~/dotfiles/add-project.sh <repo-name>
+make review LIMIT=20 ARGS="--product Teams --quarter 'Q3 2026' --major-only"
+make dry-run SOURCE=both ARGS="--no-worldwide-only --action-required"
+make run ARGS="--category planForChange"
+make products SOURCE=both
 ```
 
-Or re-run `setup.sh` — it iterates over all known projects and creates the symlink if the repo folder exists.
-
-To check which repos are missing a link:
+Equivalent without make:
 
 ```bash
-# List known projects and whether a CLAUDE.md symlink exists
-for md in ~/dotfiles/claude/projects/*.md; do
-  name=$(basename "$md" .md)
-  target=~/Coding/$name/CLAUDE.md
-  if [ -L "$target" ]; then
-    echo "✓ $name"
-  elif [ -d ~/Coding/$name ]; then
-    echo "✗ $name  (repo exists, no symlink)"
-  else
-    echo "– $name  (repo not cloned)"
-  fi
-done
+ruff check .
+ruff format --check .
+python -m pytest
 ```
 
-### 5 — Repos at non-standard paths
+## Production / Container
 
-`setup.sh` hardcodes `~/Coding/<repo-name>`. If repos live elsewhere (e.g., `~/Documents/Coding/` on Windows), either:
+One image runs either the **batch job** (scheduled) or the **review UI** (optional service).
+Configuration comes from environment variables; state/changelog/review files persist on a
+mounted volume (`/data`). Never bake secrets into the image.
 
-- **Adjust `setup.sh`** — change the `link` calls for affected repos to use the actual path, then commit
-- **Or symlink manually** — `ln -sf ~/dotfiles/claude/projects/<repo>.md <actual-path>/CLAUDE.md`
-
-The `add-project.sh` script also assumes `~/Coding/` — edit `REPO=` on line 16 if needed.
-
----
-
-## Adding a new project
-
-### Option A — manual
-
-1. Create `claude/projects/<repo-name>.md` with project-specific instructions
-2. Add a `link` line to `setup.sh`
-3. Re-run `bash ~/dotfiles/setup.sh` (safe to re-run — existing symlinks are overwritten)
-4. Commit and push
-
-### Option B — script (macOS / Git Bash on Windows)
+The recommended prod flow keeps a human in the loop: the **scheduled job refreshes drafts**
+(never writes to Confluence), and a person **approves via the UI** (or `--from-review`).
 
 ```bash
-bash ~/dotfiles/add-project.sh <repo-name>
+docker build -t m365-release-to-confluence .
+
+# Scheduled job: refresh drafts only (no --approve -> writes /data/review.json, publishes nothing)
+docker run --rm --env-file .env -v "$PWD/data:/data" m365-release-to-confluence \
+  m365-to-confluence --source both --since-days 2 --review-out /data/review.json \
+  --state-file /data/m365_state.json --changelog-file /data/m365_changelog.json
+
+# Review UI (human approval): edit, then click Publish
+docker run --rm -p 8765:8765 --env-file .env -v "$PWD/data:/data" m365-release-to-confluence \
+  m365-to-confluence-ui --host 0.0.0.0 --review-file /data/review.json
 ```
 
-This creates the placeholder `.md`, adds the link to `setup.sh`, sets the symlink immediately (if the repo exists locally), and commits + pushes automatically.
+Or with compose: `docker compose up -d ui` (UI) and `docker compose run --rm job` (draft refresh).
 
-### Option C — automatic on clone
+### Scheduling
 
-When you clone any `nic2045` repo, the `post-checkout` hook fires and calls `add-project.sh` automatically. No manual step needed.
+**Cron** (daily 06:00, draft refresh only — approval stays with a human in the UI):
 
----
+```cron
+0 6 * * * docker run --rm --env-file /opt/m365/.env -v /opt/m365/data:/data \
+  m365-release-to-confluence m365-to-confluence --source both --since-days 2 \
+  --review-out /data/review.json \
+  --state-file /data/m365_state.json --changelog-file /data/m365_changelog.json
+```
 
-## Roadmap
+**Kubernetes CronJob** (sketch): a `CronJob` running the same image/command daily (draft
+refresh), env from a `Secret`, `/data` on a `PersistentVolumeClaim`; the UI runs as a
+`Deployment`+`Service` for human review and approval.
 
-- Shell config (`~/.zshrc` / PowerShell profile, aliases, PATH)
-- SSH config skeleton
-- macOS system preferences script
-- Windows-native setup script (PowerShell) for machines without Git Bash
-- App-specific configs (VS Code settings, keybindings)
+## Layout
+
+```
+src/m365_confluence/
+├── cli.py            # entry point (m365-to-confluence)
+├── config.py         # env-based configuration
+├── models.py         # ChangeItem, ProcessedItem
+├── pipeline.py       # fetch -> aggregate -> process -> publish
+├── sources/          # message_center, roadmap, aggregate
+├── ai/               # providers, factory, prompts (STANDARDS), processor
+└── confluence/       # Server/DC REST client (PAT)
+```
