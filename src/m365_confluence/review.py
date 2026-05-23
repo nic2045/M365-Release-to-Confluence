@@ -22,6 +22,16 @@ def _pdt(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
 
 
+def _change_type(item: ChangeItem) -> str:
+    if (
+        item.created
+        and item.last_modified
+        and (item.last_modified - item.created).total_seconds() > 86400
+    ):
+        return "Aktualisiert"
+    return "Neu"
+
+
 def draft_from(item: ChangeItem, processed: ProcessedItem, make_page: bool) -> dict:
     return {
         "key": item.dedupe_key(),
@@ -32,9 +42,14 @@ def draft_from(item: ChangeItem, processed: ProcessedItem, make_page: bool) -> d
             "body": item.body,
             "url": item.url,
             "category": item.category,
+            "severity": item.severity,
             "status": item.status,
             "products": list(item.products),
             "tags": list(item.tags),
+            "release_phases": list(item.release_phases),
+            "cloud_instances": list(item.cloud_instances),
+            "change_type": _change_type(item),
+            "created": _dt(item.created),
             "last_modified": _dt(item.last_modified),
             "act_by": _dt(item.act_by),
         },
@@ -66,9 +81,13 @@ def draft_to(draft: dict) -> tuple[ChangeItem, ProcessedItem, bool]:
         body=s.get("body", ""),
         url=s.get("url", ""),
         category=s.get("category", ""),
+        severity=s.get("severity", ""),
         status=s.get("status", ""),
         products=list(s.get("products") or []),
         tags=list(s.get("tags") or []),
+        release_phases=list(s.get("release_phases") or []),
+        cloud_instances=list(s.get("cloud_instances") or []),
+        created=_pdt(s.get("created")),
         last_modified=_pdt(s.get("last_modified")),
         act_by=_pdt(s.get("act_by")),
     )

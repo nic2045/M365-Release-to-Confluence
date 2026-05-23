@@ -32,7 +32,13 @@ def test_roadmap_mapping():
         "tagsContainer": {
             "products": [{"tagName": "Teams"}],
             "releasePhase": [{"tagName": "General Availability"}],
+            "cloudInstances": [
+                {"tagName": "Worldwide (Standard Multi-Tenant)"},
+                {"tagName": "GCC"},
+            ],
+            "platforms": [{"tagName": "Desktop"}],
         },
+        "created": "2026-03-01T00:00:00Z",
         "modified": "2026-04-01T00:00:00Z",
     }
     item = RoadmapSource._map(raw)
@@ -40,5 +46,9 @@ def test_roadmap_mapping():
     assert item.source == "roadmap"
     assert item.products == ["Teams"]
     assert item.status == "In development"
+    assert item.release_phases == ["General Availability"]
+    assert "Worldwide (Standard Multi-Tenant)" in item.cloud_instances
+    assert item.platforms == ["Desktop"]
+    assert item.created is not None
     assert "General Availability" in item.tags
     assert "featureid=98765" in item.url

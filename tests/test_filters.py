@@ -61,3 +61,20 @@ def test_should_make_page_modes():
     assert _should_make_page(major, "none") is False
     assert _should_make_page(major, "major") is True
     assert _should_make_page(normal, "major") is False
+
+
+def test_worldwide_only():
+    from m365_confluence.filters import is_worldwide
+
+    ww = _item("1")
+    ww.cloud_instances = ["Worldwide (Standard Multi-Tenant)", "GCC"]
+    gcc = _item("2")
+    gcc.cloud_instances = ["GCC High", "DoD"]
+    none = _item("3")  # no cloud info (e.g. Message Center) -> passes
+
+    assert is_worldwide(ww) is True
+    assert is_worldwide(gcc) is False
+    assert is_worldwide(none) is True
+
+    kept = apply_filters([ww, gcc, none], worldwide_only=True)
+    assert [i.id for i in kept] == ["1", "3"]

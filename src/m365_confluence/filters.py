@@ -7,6 +7,16 @@ from collections.abc import Sequence
 from m365_confluence.models import ChangeItem
 
 
+def is_worldwide(item: ChangeItem) -> bool:
+    """True if the item has no cloud-instance info or includes a Worldwide instance.
+
+    Items without cloud-instance data (e.g. Message Center posts) always pass.
+    """
+    if not item.cloud_instances:
+        return True
+    return any("worldwide" in c.lower() for c in item.cloud_instances)
+
+
 def matches(
     item: ChangeItem,
     *,
@@ -14,11 +24,14 @@ def matches(
     action_required: bool = False,
     products: Sequence[str] | None = None,
     categories: Sequence[str] | None = None,
+    worldwide_only: bool = False,
 ) -> bool:
     """AND across filter types; OR within products/categories. Empty filter = pass."""
     if major_only and "MajorChange" not in item.tags:
         return False
     if action_required and item.act_by is None:
+        return False
+    if worldwide_only and not is_worldwide(item):
         return False
     if products:
         haystack = [p.lower() for p in item.products]
@@ -34,6 +47,7 @@ def apply_filters(
     action_required: bool = False,
     products: Sequence[str] | None = None,
     categories: Sequence[str] | None = None,
+    worldwide_only: bool = False,
 ) -> list[ChangeItem]:
     products = [p.lower() for p in products] if products else None
     categories = [c.lower() for c in categories] if categories else None
@@ -46,5 +60,6 @@ def apply_filters(
             action_required=action_required,
             products=products,
             categories=categories,
+            worldwide_only=worldwide_only,
         )
     ]

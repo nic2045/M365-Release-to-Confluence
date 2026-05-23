@@ -43,6 +43,15 @@ INDEX_HTML = """<!doctype html>
  .cbody{padding:16px 18px}
  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
  .chip{background:#eef1f5;color:#4a5568;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600}
+ .chip.stage{background:#e7f0ff;color:#0a5bd6}
+ .chip.rel{background:#fff3e0;color:#b25e00}
+ .chip.chan{background:#ece9fb;color:#5b3fc4}
+ .chip.new{background:#e3fcef;color:#1f7a4d}
+ .chip.upd{background:#fff8e1;color:#9a6b00}
+ .filters{max-width:980px;margin:6px auto 0;padding:10px 24px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+ .fgroup{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ .flabel{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+ .fchk{font-size:12px;color:var(--ink);display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:3px 10px;cursor:pointer}
  .row{display:flex;gap:16px;flex-wrap:wrap}
  .row>div{flex:1;min-width:200px}
  label{display:block;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted);margin:10px 0 3px}
@@ -73,29 +82,70 @@ INDEX_HTML = """<!doctype html>
   <span><b>3.</b> Speichern</span>
   <span><b>4.</b> Veröffentlichen (ignorierte werden ausgelassen)</span>
 </div>
+<div id="filters" class="filters"></div>
 <main id="list"></main>
 <script>
 const DECISIONS=["Activate","Communicate","Monitor","Deactivate"];
+const CAT={planForChange:'Plan for Change',preventOrFixIssue:'Prevent/Fix Issue',stayInformed:'Stay Informed'};
 let drafts=[];
+let activeQ=null, activeChan=null;
 function setStatus(t){document.getElementById('status').textContent=t;}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function uniq(vals){return [...new Set(vals)].sort();}
+function quartersOf(){return uniq(drafts.map(d=>d.edit.target_quarter||'—'));}
+function channelsOf(){const c=[];drafts.forEach(d=>(d.source.release_phases||[]).forEach(p=>c.push(p)));return uniq(c);}
+function relevance(s){
+  const parts=[];
+  if(s.category&&CAT[s.category])parts.push(CAT[s.category]); else if(s.category&&s.category!=='roadmap')parts.push(s.category);
+  if(s.severity)parts.push(s.severity);
+  if((s.tags||[]).includes('MajorChange'))parts.push('Major');
+  return parts.join(' · ');
+}
+function renderFilters(){
+  const qs=quartersOf(), chs=channelsOf();
+  if(activeQ===null)activeQ=new Set(qs);
+  if(activeChan===null)activeChan=new Set(chs);
+  const qhtml=qs.map(q=>`<label class="fchk"><input type="checkbox" ${activeQ.has(q)?'checked':''} onchange="toggle('q','${q.replace(/'/g,"")}')"> ${esc(q)}</label>`).join('');
+  const chtml=chs.length?('<span class="flabel">Channel:</span>'+chs.map(c=>`<label class="fchk"><input type="checkbox" ${activeChan.has(c)?'checked':''} onchange="toggle('c','${c.replace(/'/g,"")}')"> ${esc(c)}</label>`).join('')):'';
+  document.getElementById('filters').innerHTML=
+    `<div class="fgroup"><span class="flabel">Quartal:</span>${qhtml}</div><div class="fgroup">${chtml}</div>`;
+}
+function toggle(kind,val){
+  const set=kind==='q'?activeQ:activeChan;
+  set.has(val)?set.delete(val):set.add(val);
+  render();
+}
 async function load(){
-  const r=await fetch('/api/drafts');const d=await r.json();drafts=d.items||[];render();
+  const r=await fetch('/api/drafts');const d=await r.json();drafts=d.items||[];
+  activeQ=null;activeChan=null;renderFilters();render();
   setStatus(drafts.length+' Einträge');
 }
 function field(label,val,onin,ml){
   if(ml)return `<label>${label}</label><textarea oninput="${onin}">${esc(val)}</textarea>`;
   return `<label>${label}</label><input type="text" value="${esc(val)}" oninput="${onin}">`;
 }
+function passesFilters(it){
+  if(activeQ && !activeQ.has(it.edit.target_quarter||'—'))return false;
+  const phases=it.source.release_phases||[];
+  if(activeChan && phases.length && !phases.some(p=>activeChan.has(p)))return false;
+  return true;
+}
 function render(){
   const hide=document.getElementById('hideign').checked;
   const el=document.getElementById('list');
-  const visible=drafts.map((it,i)=>[it,i]).filter(([it])=>!(hide&&it.ignored));
-  if(!visible.length){el.innerHTML='<div class="empty">Keine Einträge. Erst Entwürfe erzeugen:<br><code>make review</code></div>';return;}
+  const visible=drafts.map((it,i)=>[it,i]).filter(([it])=>!(hide&&it.ignored)&&passesFilters(it));
+  if(!visible.length){el.innerHTML='<div class="empty">Keine Einträge (Filter prüfen). Sonst erst Entwürfe erzeugen:<br><code>make review</code></div>';return;}
   el.innerHTML=visible.map(([it,i])=>{
     const e=it.edit, s=it.source;
     const opts=DECISIONS.map(o=>`<option ${o===e.decision?'selected':''}>${o}</option>`).join('');
-    const chips=(s.products||[]).map(p=>`<span class="chip">${esc(p)}</span>`).join('')
+    const ct=s.change_type||'';
+    const rel=relevance(s);
+    const chips=
+       (s.status?`<span class="chip stage">Stufe: ${esc(s.status)}</span>`:'')
+      +(ct?`<span class="chip ${ct==='Neu'?'new':'upd'}">${esc(ct)}</span>`:'')
+      +(rel?`<span class="chip rel">${esc(rel)}</span>`:'')
+      +(s.release_phases||[]).map(p=>`<span class="chip chan">${esc(p)}</span>`).join('')
+      +(s.products||[]).map(p=>`<span class="chip">${esc(p)}</span>`).join('')
       +(e.target_quarter?`<span class="chip">${esc(e.target_quarter)}</span>`:'')
       +(e.cab_required?'<span class="chip" style="background:#fde8e8;color:#b42318">CAB</span>':'');
     return `<div class="card ${it.ignored?'ignored':''}" id="card${i}">

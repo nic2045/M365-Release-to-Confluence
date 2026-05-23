@@ -77,8 +77,10 @@ class MessageCenterSource:
             body=body.get("content", ""),
             url="https://admin.microsoft.com/Adminportal/Home#/MessageCenter",
             category=message.get("category", ""),
+            severity=message.get("severity", ""),
             products=list(services),
             tags=tags,
+            created=_parse_dt(message.get("startDateTime")),
             last_modified=_parse_dt(message.get("lastModifiedDateTime")),
             act_by=_parse_dt(message.get("actionRequiredByDateTime")),
         )

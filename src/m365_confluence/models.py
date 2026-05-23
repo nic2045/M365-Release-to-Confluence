@@ -16,9 +16,18 @@ class ChangeItem:
     body: str  # raw text/HTML as delivered by the source
     url: str = ""
     category: str = ""  # e.g. "planForChange", "stayInformed", "preventOrFixIssue"
-    status: str = ""  # roadmap rollout status, e.g. "In development"
+    severity: str = ""  # Message Center severity, e.g. "normal", "high", "critical"
+    status: str = ""  # roadmap rollout stage, e.g. "In development", "Rolling out", "Launched"
     products: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
+    release_phases: list[str] = field(
+        default_factory=list
+    )  # MS channels, e.g. "General Availability"
+    cloud_instances: list[str] = field(
+        default_factory=list
+    )  # e.g. "Worldwide (Standard Multi-Tenant)"
+    platforms: list[str] = field(default_factory=list)
+    created: datetime | None = None
     last_modified: datetime | None = None
     act_by: datetime | None = None
 

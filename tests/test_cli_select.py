@@ -45,6 +45,7 @@ def test_approval_gate_redirects_to_review(monkeypatch, tmp_path):
                     "categories": [],
                     "major_only": False,
                     "action_required": False,
+                    "worldwide_only": False,
                     "quarter": "",
                 },
             )()
@@ -87,6 +88,7 @@ def test_approve_allows_publish(monkeypatch, tmp_path):
                     "categories": [],
                     "major_only": False,
                     "action_required": False,
+                    "worldwide_only": False,
                     "quarter": "",
                 },
             )()

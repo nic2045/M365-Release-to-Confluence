@@ -153,6 +153,7 @@ class FilterConfig:
     categories: list[str] = field(default_factory=list)
     major_only: bool = False
     action_required: bool = False
+    worldwide_only: bool = False
     quarter: str = ""
 
     @classmethod
@@ -162,6 +163,7 @@ class FilterConfig:
             categories=_split_list(os.getenv("FILTER_CATEGORIES", "")),
             major_only=_as_bool(os.getenv("FILTER_MAJOR_ONLY")),
             action_required=_as_bool(os.getenv("FILTER_ACTION_REQUIRED")),
+            worldwide_only=_as_bool(os.getenv("FILTER_WORLDWIDE_ONLY")),
             quarter=os.getenv("FILTER_QUARTER", "").strip(),
         )
 

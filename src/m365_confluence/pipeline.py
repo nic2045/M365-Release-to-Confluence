@@ -87,6 +87,7 @@ def run(
     action_required: bool = False,
     products: list[str] | None = None,
     categories: list[str] | None = None,
+    worldwide_only: bool = False,
     dry_run: bool = False,
     force: bool = False,
     item_pages: str = "major",
@@ -108,6 +109,7 @@ def run(
         action_required=action_required,
         products=products,
         categories=categories,
+        worldwide_only=worldwide_only,
     )
     if limit is not None:
         items = items[:limit]

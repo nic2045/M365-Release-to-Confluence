@@ -46,7 +46,10 @@ class RoadmapSource:
             return [t.get("tagName", "") for t in tags_container.get(key, []) if t.get("tagName")]
 
         products = _names("products")
-        tags = _names("releasePhase") + _names("cloudInstances") + _names("platforms")
+        release_phases = _names("releasePhase")
+        cloud_instances = _names("cloudInstances")
+        platforms = _names("platforms")
+        tags = [t for t in (release_phases + cloud_instances + platforms) if t]
         status = ""
         statuses = feature.get("status") or feature.get("featureStatus")
         if isinstance(statuses, list) and statuses:
@@ -66,6 +69,10 @@ class RoadmapSource:
             category="roadmap",
             status=status,
             products=products,
-            tags=[t for t in tags if t],
+            tags=tags,
+            release_phases=release_phases,
+            cloud_instances=cloud_instances,
+            platforms=platforms,
+            created=_parse_dt(feature.get("created")),
             last_modified=_parse_dt(feature.get("modified") or feature.get("created")),
         )
