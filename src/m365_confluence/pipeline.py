@@ -12,7 +12,7 @@ from m365_confluence.ai import build_provider, process_item
 from m365_confluence.ai.prompts import render_storage
 from m365_confluence.changelog import ChangelogStore, render_changelog_body
 from m365_confluence.config import Config
-from m365_confluence.confluence import ConfluenceClient
+from m365_confluence.confluence import build_confluence
 from m365_confluence.filters import apply_filters, is_rollout_or_live
 from m365_confluence.models import ChangeItem, ProcessedItem
 from m365_confluence.quarters import derive_quarter, quarter_key
@@ -133,7 +133,7 @@ def run(
     state = StateStore(state_file).load()
     provider = build_provider(config.ai)
     need_confluence = not dry_run and not review_out
-    confluence = ConfluenceClient(config.confluence) if need_confluence else None
+    confluence = build_confluence(config.confluence) if need_confluence else None
 
     processed: list[ProcessedItem] = []
     prepared: list[tuple[ChangeItem, ProcessedItem, bool]] = []
@@ -310,7 +310,7 @@ def run_from_review(
     """Publish edited review drafts to Confluence without calling the LLM."""
     drafts = load_drafts(review_file)
     state = StateStore(state_file).load()
-    confluence = None if dry_run else ConfluenceClient(config.confluence)
+    confluence = None if dry_run else build_confluence(config.confluence)
 
     prepared: list[tuple[ChangeItem, ProcessedItem, bool]] = []
     new_count = 0

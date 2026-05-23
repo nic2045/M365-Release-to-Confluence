@@ -134,6 +134,7 @@ class ConfluenceConfig:
     token: str  # Personal Access Token (Bearer)
     space_key: str
     parent_page_id: str = ""
+    backend: str = "requests"  # "requests" (built-in) or "atlassian" (atlassian-python-api)
 
     @classmethod
     def from_env(cls) -> ConfluenceConfig:
@@ -142,6 +143,7 @@ class ConfluenceConfig:
             token=_clean_token(_require_any("CONFLUENCE_TOKEN", "ConfluencePAT")),
             space_key=_require("CONFLUENCE_SPACE").strip(),
             parent_page_id=os.getenv("CONFLUENCE_PARENT_PAGE_ID", ""),
+            backend=os.getenv("CONFLUENCE_BACKEND", "requests").strip().lower(),
         )
 
 
