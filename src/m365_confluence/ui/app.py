@@ -48,6 +48,7 @@ INDEX_HTML = """<!doctype html>
  .chip.chan{background:#ece9fb;color:#5b3fc4}
  .chip.new{background:#e3fcef;color:#1f7a4d}
  .chip.upd{background:#fff8e1;color:#9a6b00}
+ .chip.area{background:#e8eefc;color:#3b50b0}
  .filters{max-width:980px;margin:6px auto 0;padding:10px 24px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
  .fgroup{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
  .flabel{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
@@ -86,9 +87,10 @@ INDEX_HTML = """<!doctype html>
 <main id="list"></main>
 <script>
 const DECISIONS=["Activate","Communicate","Monitor","Deactivate"];
+const AREAS=["End User","Admin / IT","Security","Compliance"];
 const CAT={planForChange:'Plan for Change',preventOrFixIssue:'Prevent/Fix Issue',stayInformed:'Stay Informed'};
 let drafts=[];
-let activeQ=null, activeChan=null, activeProd=null;
+let activeQ=null, activeChan=null, activeProd=null, activeArea=null;
 function setStatus(t){document.getElementById('status').textContent=t;}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 function uniq(vals){return [...new Set(vals)].sort();}
@@ -108,20 +110,24 @@ function renderFilters(){
   if(activeQ===null)activeQ=new Set(qs);
   if(activeChan===null)activeChan=new Set(chs);
   if(activeProd===null)activeProd=new Set(prs);
+  if(activeArea===null)activeArea=new Set(AREAS);
   const qhtml=qs.map(q=>chk(activeQ,q,"toggleQ")).join('');
+  const ahtml=AREAS.map(a=>chk(activeArea,a,"toggleA")).join('');
   const phtml=prs.length?('<span class="flabel">Produkt:</span>'+prs.map(p=>chk(activeProd,p,"toggleP")).join('')):'';
   const chtml=chs.length?('<span class="flabel">Channel:</span>'+chs.map(c=>chk(activeChan,c,"toggleC")).join('')):'';
   document.getElementById('filters').innerHTML=
     `<div class="fgroup"><span class="flabel">Quartal:</span>${qhtml}</div>`
+    +`<div class="fgroup"><span class="flabel">Bereich:</span>${ahtml}</div>`
     +`<div class="fgroup">${phtml}</div><div class="fgroup">${chtml}</div>`;
 }
 function flip(set,val){set.has(val)?set.delete(val):set.add(val);render();}
 function toggleQ(v){flip(activeQ,v);}
 function toggleC(v){flip(activeChan,v);}
 function toggleP(v){flip(activeProd,v);}
+function toggleA(v){flip(activeArea,v);}
 async function load(){
   const r=await fetch('/api/drafts');const d=await r.json();drafts=d.items||[];
-  activeQ=null;activeChan=null;activeProd=null;renderFilters();render();
+  activeQ=null;activeChan=null;activeProd=null;activeArea=null;renderFilters();render();
   setStatus(drafts.length+' Einträge');
 }
 function field(label,val,onin,ml){
@@ -134,6 +140,8 @@ function passesFilters(it){
   if(activeChan && phases.length && !phases.some(p=>activeChan.has(p)))return false;
   const prods=it.source.products||[];
   if(activeProd && prods.length && !prods.some(p=>activeProd.has(p)))return false;
+  const areas=it.edit.areas||[];
+  if(activeArea && areas.length && !areas.some(a=>activeArea.has(a)))return false;
   return true;
 }
 function render(){
@@ -147,13 +155,15 @@ function render(){
     const ct=s.change_type||'';
     const rel=relevance(s);
     const chips=
-       (s.status?`<span class="chip stage">Stufe: ${esc(s.status)}</span>`:'')
+       (e.areas||[]).map(a=>`<span class="chip area">${esc(a)}</span>`).join('')
+      +(s.status?`<span class="chip stage">Stufe: ${esc(s.status)}</span>`:'')
       +(ct?`<span class="chip ${ct==='Neu'?'new':'upd'}">${esc(ct)}</span>`:'')
       +(rel?`<span class="chip rel">${esc(rel)}</span>`:'')
       +(s.release_phases||[]).map(p=>`<span class="chip chan">${esc(p)}</span>`).join('')
       +(s.products||[]).map(p=>`<span class="chip">${esc(p)}</span>`).join('')
       +(e.target_quarter?`<span class="chip">${esc(e.target_quarter)}</span>`:'')
       +(e.cab_required?'<span class="chip" style="background:#fde8e8;color:#b42318">CAB</span>':'');
+    const areaChecks=AREAS.map(a=>`<label class="check" style="margin-top:0"><input type="checkbox" ${(e.areas||[]).includes(a)?'checked':''} onchange="toggleItemArea(${i},'${a}')"> ${a}</label>`).join('');
     return `<div class="card ${it.ignored?'ignored':''}" id="card${i}">
       <div class="chead">
         <span class="num">${i+1}</span>
@@ -166,6 +176,8 @@ function render(){
       </div>
       <div class="cbody">
         <div class="chips">${chips}</div>
+        <label>Bereich</label>
+        <div class="row" style="gap:18px">${areaChecks}</div>
         <div class="row">
           <div>${field('Ziel-Quartal',e.target_quarter,`upd(${i},'target_quarter',this.value)`)}</div>
           <div><label>Entscheidung</label><select onchange="upd(${i},'decision',this.value);render()">${opts}</select></div>
@@ -182,6 +194,7 @@ function render(){
 }
 function upd(i,k,v){drafts[i].edit[k]=v;}
 function updTop(i,k,v){drafts[i][k]=v;}
+function toggleItemArea(i,a){const e=drafts[i].edit;e.areas=e.areas||[];const x=e.areas.indexOf(a);x>=0?e.areas.splice(x,1):e.areas.push(a);render();}
 function toggleIgnore(i){drafts[i].ignored=!drafts[i].ignored;render();}
 async function save(){
   setStatus('Speichere…');

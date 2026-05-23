@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import html
 
-from m365_confluence.confluence_macros import cab_badge, decision_badge, slip_badge
+from m365_confluence.confluence_macros import area_badges, cab_badge, decision_badge, slip_badge
 from m365_confluence.quarters import UNSCHEDULED, quarter_key
 from m365_confluence.state import ItemState
 
@@ -45,7 +45,7 @@ def _title_cell(state: ItemState) -> str:
 NO_PRODUCT = "Ohne Produkt"
 
 _HEADER = (
-    "<tr><th>Feature</th><th>Status</th><th>Entscheidung</th>"
+    "<tr><th>Feature</th><th>Bereich</th><th>Status</th><th>Entscheidung</th>"
     "<th>CAB-Empfehlung</th><th>Verzug</th><th>Beschreibung</th></tr>"
 )
 
@@ -66,6 +66,7 @@ def _feature_row(state: ItemState) -> str:
     return (
         "<tr>"
         f"<td>{_title_cell(state)}</td>"
+        f"<td>{area_badges(state.areas)}</td>"
         f"<td>{_esc(state.status)}</td>"
         f"<td>{decision_badge(state.decision)}</td>"
         f"<td>{cab_cell}</td>"

@@ -10,7 +10,7 @@ from __future__ import annotations
 import html
 import json
 
-from m365_confluence.confluence_macros import cab_badge, decision_badge
+from m365_confluence.confluence_macros import area_badges, cab_badge, decision_badge
 from m365_confluence.models import ChangeItem, ProcessedItem
 
 STANDARDS = """\
@@ -47,6 +47,8 @@ with exactly these keys:
   "decision_rationale": string  - one sentence explaining the decision
   "cab_required":       boolean - true if the Change Advisory Board (CAB) should review this
   "cab_recommendation": string  - one sentence for the CAB: what to advise; "" if not relevant
+  "areas":              string[] - one or more affected areas, each EXACTLY one of:
+                                   "End User", "Admin / IT", "Security", "Compliance"
 
 JSON rules (strict):
 - Output must parse as JSON (RFC 8259). Escape every double quote inside a
@@ -58,7 +60,7 @@ Example shape (values are illustrative only):
 {{"title":"...","summary":"...","impact":"...","audience":"Admins",\
 "recommended_action":"...","action_items":["...","..."],\
 "target_quarter":"Q3 2026","decision":"Communicate","decision_rationale":"...",\
-"cab_required":false,"cab_recommendation":"..."}}
+"cab_required":false,"cab_recommendation":"...","areas":["Admin / IT","Security"]}}
 """
 
 _USER_TEMPLATE = """\
@@ -124,6 +126,37 @@ def _as_bool(value: object) -> bool:
     return str(value).strip().lower() in {"true", "yes", "1", "ja"}
 
 
+AREAS = ("End User", "Admin / IT", "Security", "Compliance")
+_AREA_SYNONYMS = {
+    "end user": "End User",
+    "enduser": "End User",
+    "endbenutzer": "End User",
+    "user": "End User",
+    "users": "End User",
+    "admin": "Admin / IT",
+    "admin / it": "Admin / IT",
+    "admin/it": "Admin / IT",
+    "it": "Admin / IT",
+    "administration": "Admin / IT",
+    "security": "Security",
+    "sicherheit": "Security",
+    "compliance": "Compliance",
+    "governance": "Compliance",
+}
+
+
+def normalize_areas(values: object) -> list[str]:
+    out: list[str] = []
+    if not isinstance(values, list):
+        return out
+    for v in values:
+        key = str(v).strip().lower()
+        name = _AREA_SYNONYMS.get(key) or next((a for a in AREAS if a.lower() == key), None)
+        if name and name not in out:
+            out.append(name)
+    return out
+
+
 def parse_response(raw: str, item: ChangeItem) -> ProcessedItem:
     data = _load_json(raw)
     title = (data.get("title") or item.title).strip()
@@ -140,6 +173,7 @@ def parse_response(raw: str, item: ChangeItem) -> ProcessedItem:
         decision_rationale=str(data.get("decision_rationale", "")).strip(),
         cab_required=_as_bool(data.get("cab_required")),
         cab_recommendation=str(data.get("cab_recommendation", "")).strip(),
+        areas=normalize_areas(data.get("areas")),
         confluence_title=title,
     )
     processed.confluence_body = render_storage(processed)
@@ -196,6 +230,8 @@ def render_storage(item: ProcessedItem) -> str:
     rec = f" {esc(item.cab_recommendation)}" if item.cab_recommendation else ""
     cab = f"<h2>CAB-Empfehlung</h2><p>{cab_badge(item.cab_required)}{rec}</p>"
 
+    area = f"<h2>Bereich</h2><p>{area_badges(item.areas)}</p>" if item.areas else ""
+
     actions = ""
     if item.action_items:
         lis = "".join(f"<li>{esc(a)}</li>" for a in item.action_items)
@@ -212,6 +248,7 @@ def render_storage(item: ProcessedItem) -> str:
         f"<table><tbody>{meta_rows}</tbody></table>"
         f"<h2>Summary</h2><p>{esc(item.summary)}</p>"
         f"<h2>Impact</h2><p>{esc(item.impact)}</p>"
+        f"{area}"
         f"{decision}"
         f"{cab}"
         f"{recommended}"

@@ -50,6 +50,7 @@ class ProcessedItem:
     decision_rationale: str = ""
     cab_required: bool = False  # should the Change Advisory Board review this?
     cab_recommendation: str = ""  # recommendation for the Change Advisory Board
+    areas: list[str] = field(default_factory=list)  # End User / Admin · IT / Security / Compliance
     slipped: bool = False  # target quarter moved later than previously seen
     previous_quarter: str = ""  # the earlier target quarter, when slipped
     confluence_title: str = ""

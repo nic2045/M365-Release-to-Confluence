@@ -65,6 +65,7 @@ def draft_from(item: ChangeItem, processed: ProcessedItem, make_page: bool) -> d
             "decision_rationale": processed.decision_rationale,
             "cab_required": processed.cab_required,
             "cab_recommendation": processed.cab_recommendation,
+            "areas": list(processed.areas),
         },
         "make_page": make_page,
         "ignored": False,
@@ -103,6 +104,7 @@ def draft_to(draft: dict) -> tuple[ChangeItem, ProcessedItem, bool]:
         decision_rationale=e.get("decision_rationale", ""),
         cab_required=bool(e.get("cab_required")),
         cab_recommendation=e.get("cab_recommendation", ""),
+        areas=list(e.get("areas") or []),
         confluence_title=e.get("confluence_title", ""),
     )
     return item, processed, bool(draft.get("make_page", False))

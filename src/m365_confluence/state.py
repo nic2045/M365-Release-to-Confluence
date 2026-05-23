@@ -29,6 +29,7 @@ class ItemState:
     decision: str = ""
     cab_required: bool = False
     cab_recommendation: str = ""
+    areas: list[str] = field(default_factory=list)
     summary: str = ""
     has_page: bool = False
     slipped: bool = False
@@ -87,6 +88,7 @@ class StateStore:
             decision=processed.decision,
             cab_required=processed.cab_required,
             cab_recommendation=processed.cab_recommendation,
+            areas=list(processed.areas),
             summary=processed.summary,
             has_page=has_page,
             slipped=processed.slipped,

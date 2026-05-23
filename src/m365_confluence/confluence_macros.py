@@ -36,3 +36,15 @@ def slip_badge(label: str = "verschoben") -> str:
 
 def cab_badge(required: bool) -> str:
     return status_macro("Red", "CAB: Ja") if required else status_macro("Green", "CAB: Nein")
+
+
+AREA_COLOURS = {
+    "End User": "Blue",
+    "Admin / IT": "Purple",
+    "Security": "Red",
+    "Compliance": "Green",
+}
+
+
+def area_badges(areas: list[str]) -> str:
+    return "".join(status_macro(AREA_COLOURS.get(a, "Grey"), a) for a in areas)

@@ -45,3 +45,18 @@ def test_render_storage_escapes_html():
     body = render_storage(processed)
     assert "<script>" not in body
     assert "&lt;script&gt;" in body
+
+
+def test_normalize_areas():
+    from m365_confluence.ai.prompts import normalize_areas
+
+    assert normalize_areas(["admin", "Security", "user"]) == ["Admin / IT", "Security", "End User"]
+    assert normalize_areas(["bogus"]) == []
+    assert normalize_areas("notalist") == []
+
+
+def test_parse_response_areas_and_badges():
+    raw = '{"summary":"s","areas":["admin","security"]}'
+    result = parse_response(raw, _item())
+    assert result.areas == ["Admin / IT", "Security"]
+    assert "Bereich" in result.confluence_body
