@@ -74,6 +74,24 @@ def _output_relevant(item: ChangeItem, previous) -> bool:
     return not (previous is not None and is_rollout_or_live(previous.status))
 
 
+_FATAL_PROVIDER_MARKERS = (
+    "credit balance",
+    "plans & billing",
+    "authentication_error",
+    "invalid x-api-key",
+    "invalid api key",
+    "incorrect api key",
+    "permission_error",
+    "insufficient_quota",
+)
+
+
+def _is_fatal_provider_error(exc: Exception) -> bool:
+    """True for provider errors that will affect every item (billing/auth/quota)."""
+    msg = str(exc).lower()
+    return any(marker in msg for marker in _FATAL_PROVIDER_MARKERS)
+
+
 def _should_make_page(item: ChangeItem, mode: str) -> bool:
     if mode == "all":
         return True
@@ -163,7 +181,15 @@ def run(
         started = time.monotonic()
         try:
             result = process_item(provider, item, config.ai.output_language, config.ai.org_context)
-        except Exception:
+        except Exception as exc:
+            if _is_fatal_provider_error(exc):
+                log.error(
+                    "Aborting: the AI provider rejected the request — %s. "
+                    "Check credits/billing or API key, or switch AI_PROVIDER "
+                    "(e.g. 'local' or 'azure_openai').",
+                    str(exc).splitlines()[0] if str(exc) else exc,
+                )
+                break
             log.exception("[%d/%d] Skipping %s: processing failed", index, total, key)
             skipped += 1
             continue

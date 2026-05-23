@@ -111,3 +111,11 @@ def test_output_relevant():
     prev_dev = SimpleNamespace(status="In development")
     assert _output_relevant(rolling, prev_dev) is True  # transitioned to live
     assert _output_relevant(mc, None) is True  # message center always relevant
+
+
+def test_fatal_provider_error_detection():
+    from m365_confluence.pipeline import _is_fatal_provider_error
+
+    assert _is_fatal_provider_error(Exception("Your credit balance is too low")) is True
+    assert _is_fatal_provider_error(Exception("authentication_error: bad key")) is True
+    assert _is_fatal_provider_error(Exception("Connection timed out")) is False
