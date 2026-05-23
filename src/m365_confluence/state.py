@@ -27,6 +27,7 @@ class ItemState:
     products: list[str] = field(default_factory=list)
     target_quarter: str = ""
     decision: str = ""
+    cab_recommendation: str = ""
     summary: str = ""
     has_page: bool = False
     slipped: bool = False
@@ -83,6 +84,7 @@ class StateStore:
             products=list(item.products),
             target_quarter=processed.target_quarter,
             decision=processed.decision,
+            cab_recommendation=processed.cab_recommendation,
             summary=processed.summary,
             has_page=has_page,
             slipped=processed.slipped,

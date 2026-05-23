@@ -69,3 +69,23 @@ def test_quarter_dashboards_show_moved_out_in_old_quarter():
     assert "verschoben nach Q4 2026" in dashboards["Q3 2026"]
     # New quarter shows the item with "aus Q3 2026"
     assert "verschoben aus Q3 2026" in dashboards["Q4 2026"]
+
+
+def test_dashboard_groups_by_product_with_headings():
+    a = _state("a", "Q3 2026", title="Teams Feature")
+    b = _state("b", "Q3 2026", title="SP Feature")
+    b.products = ["SharePoint"]
+    a.products = ["Microsoft Teams"]
+    a.cab_recommendation = "CAB-Review empfohlen"
+    body = build_dashboard_body("Q3 2026", [a, b])
+    assert "<h3>Microsoft Teams</h3>" in body
+    assert "<h3>SharePoint</h3>" in body
+    assert "CAB-Empfehlung" in body  # header
+    assert "CAB-Review empfohlen" in body  # value
+
+
+def test_dashboard_no_product_bucket():
+    s = _state("a", "Q3 2026")
+    s.products = []
+    body = build_dashboard_body("Q3 2026", [s])
+    assert "<h3>Ohne Produkt</h3>" in body

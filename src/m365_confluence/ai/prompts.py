@@ -45,6 +45,8 @@ with exactly these keys:
   "target_quarter":     string  - "Qn YYYY" or "" if unknown
   "decision":           string  - one of: "Activate", "Deactivate", "Communicate", "Monitor"
   "decision_rationale": string  - one sentence explaining the decision
+  "cab_recommendation": string  - one sentence for the Change Advisory Board (CAB): whether
+                                   it needs CAB review and what to advise; "" if not relevant
 
 JSON rules (strict):
 - Output must parse as JSON (RFC 8259). Escape every double quote inside a
@@ -55,7 +57,8 @@ JSON rules (strict):
 Example shape (values are illustrative only):
 {{"title":"...","summary":"...","impact":"...","audience":"Admins",\
 "recommended_action":"...","action_items":["...","..."],\
-"target_quarter":"Q3 2026","decision":"Communicate","decision_rationale":"..."}}
+"target_quarter":"Q3 2026","decision":"Communicate","decision_rationale":"...",\
+"cab_recommendation":"..."}}
 """
 
 _USER_TEMPLATE = """\
@@ -129,6 +132,7 @@ def parse_response(raw: str, item: ChangeItem) -> ProcessedItem:
         target_quarter=str(data.get("target_quarter", "")).strip(),
         decision=_normalize_decision(str(data.get("decision", ""))),
         decision_rationale=str(data.get("decision_rationale", "")).strip(),
+        cab_recommendation=str(data.get("cab_recommendation", "")).strip(),
         confluence_title=title,
     )
     processed.confluence_body = render_storage(processed)
@@ -182,6 +186,10 @@ def render_storage(item: ProcessedItem) -> str:
         rationale = f" {esc(item.decision_rationale)}" if item.decision_rationale else ""
         decision = f"<h2>Decision</h2><p>{decision_badge(item.decision)}{rationale}</p>"
 
+    cab = ""
+    if item.cab_recommendation:
+        cab = f"<h2>CAB-Empfehlung</h2><p>{esc(item.cab_recommendation)}</p>"
+
     actions = ""
     if item.action_items:
         lis = "".join(f"<li>{esc(a)}</li>" for a in item.action_items)
@@ -199,6 +207,7 @@ def render_storage(item: ProcessedItem) -> str:
         f"<h2>Summary</h2><p>{esc(item.summary)}</p>"
         f"<h2>Impact</h2><p>{esc(item.impact)}</p>"
         f"{decision}"
+        f"{cab}"
         f"{recommended}"
         f"{actions}"
         f"{link}"

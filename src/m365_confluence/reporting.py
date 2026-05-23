@@ -42,41 +42,55 @@ def _title_cell(state: ItemState) -> str:
     return f"<strong>{_esc(state.title)}</strong>"
 
 
+NO_PRODUCT = "Ohne Produkt"
+
+_HEADER = (
+    "<tr><th>Feature</th><th>Status</th><th>Entscheidung</th>"
+    "<th>CAB-Empfehlung</th><th>Verzug</th><th>Beschreibung</th></tr>"
+)
+
+
+def _primary_product(state: ItemState) -> str:
+    return state.products[0] if state.products else NO_PRODUCT
+
+
+def _feature_row(state: ItemState) -> str:
+    if state.slipped and state.previous_quarter:
+        slip = slip_badge(f"verschoben aus {state.previous_quarter}")
+    elif state.slipped:
+        slip = slip_badge()
+    else:
+        slip = ""
+    return (
+        "<tr>"
+        f"<td>{_title_cell(state)}</td>"
+        f"<td>{_esc(state.status)}</td>"
+        f"<td>{decision_badge(state.decision)}</td>"
+        f"<td>{_short(state.cab_recommendation, 160)}</td>"
+        f"<td>{slip}</td>"
+        f"<td>{_short(state.summary)}</td>"
+        "</tr>"
+    )
+
+
 def build_dashboard_body(
     quarter: str,
     items: list[ItemState],
     moved_out: list[ItemState] | None = None,
 ) -> str:
-    ordered = sorted(items, key=lambda s: (not s.slipped, s.title.lower()))
-    rows = []
-    for state in ordered:
-        if state.slipped and state.previous_quarter:
-            slip = slip_badge(f"verschoben aus {state.previous_quarter}")
-        elif state.slipped:
-            slip = slip_badge()
-        else:
-            slip = ""
-        rows.append(
-            "<tr>"
-            f"<td>{_title_cell(state)}</td>"
-            f"<td>{_esc(', '.join(state.products))}</td>"
-            f"<td>{_esc(state.status)}</td>"
-            f"<td>{decision_badge(state.decision)}</td>"
-            f"<td>{slip}</td>"
-            f"<td>{_short(state.summary)}</td>"
-            "</tr>"
-        )
+    by_product: dict[str, list[ItemState]] = {}
+    for state in items:
+        by_product.setdefault(_primary_product(state), []).append(state)
 
-    header = (
-        "<tr><th>Feature</th><th>Produkte</th><th>Status</th>"
-        "<th>Entscheidung</th><th>Verzug</th><th>Beschreibung</th></tr>"
-    )
     label = quarter or UNSCHEDULED
     body = (
-        f"<p>{len(ordered)} Feature(s) für <strong>{_esc(label)}</strong>. "
+        f"<p>{len(items)} Feature(s) für <strong>{_esc(label)}</strong>, nach Produkt gegliedert. "
         "Automatisch generiert – nicht manuell bearbeiten.</p>"
-        f"<table><tbody>{header}{''.join(rows)}</tbody></table>"
     )
+    for product in sorted(by_product, key=lambda p: (p == NO_PRODUCT, p.lower())):
+        group = sorted(by_product[product], key=lambda s: (not s.slipped, s.title.lower()))
+        rows = "".join(_feature_row(s) for s in group)
+        body += f"<h3>{_esc(product)}</h3><table><tbody>{_HEADER}{rows}</tbody></table>"
 
     if moved_out:
         moved_rows = "".join(
