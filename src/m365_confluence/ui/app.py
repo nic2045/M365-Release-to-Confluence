@@ -19,7 +19,7 @@ INDEX_HTML = """<!doctype html>
 <title>M365 Review</title>
 <style>
  body{font-family:system-ui,sans-serif;margin:0;background:#f4f5f7;color:#172b4d}
- header{background:#0052cc;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:16px}
+ header{background:#0a84ff;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:16px}
  header h1{font-size:18px;margin:0;flex:1}
  button{background:#0052cc;color:#fff;border:0;border-radius:4px;padding:8px 14px;cursor:pointer}
  button.secondary{background:#42526e}
