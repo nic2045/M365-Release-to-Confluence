@@ -49,6 +49,10 @@ with exactly these keys:
   "cab_recommendation": string  - one sentence for the CAB: what to advise; "" if not relevant
   "areas":              string[] - one or more affected areas, each EXACTLY one of:
                                    "End User", "Admin / IT", "Security", "Compliance"
+  "data_protection_impact": boolean - true if it affects data/information protection (privacy)
+  "it_landscape_impact":    boolean - true if it affects the general IT landscape
+  "config_change_required": boolean - true if a platform configuration change is needed
+  "kbv_change_required":    boolean - true if the works agreement (KBV) or an annex must change
 
 JSON rules (strict):
 - Output must parse as JSON (RFC 8259). Escape every double quote inside a
@@ -60,7 +64,9 @@ Example shape (values are illustrative only):
 {{"title":"...","summary":"...","impact":"...","audience":"Admins",\
 "recommended_action":"...","action_items":["...","..."],\
 "target_quarter":"Q3 2026","decision":"Communicate","decision_rationale":"...",\
-"cab_required":false,"cab_recommendation":"...","areas":["Admin / IT","Security"]}}
+"cab_required":false,"cab_recommendation":"...","areas":["Admin / IT","Security"],\
+"data_protection_impact":false,"it_landscape_impact":true,\
+"config_change_required":false,"kbv_change_required":false}}
 """
 
 _USER_TEMPLATE = """\
@@ -174,6 +180,10 @@ def parse_response(raw: str, item: ChangeItem) -> ProcessedItem:
         cab_required=_as_bool(data.get("cab_required")),
         cab_recommendation=str(data.get("cab_recommendation", "")).strip(),
         areas=normalize_areas(data.get("areas")),
+        data_protection_impact=_as_bool(data.get("data_protection_impact")),
+        it_landscape_impact=_as_bool(data.get("it_landscape_impact")),
+        config_change_required=_as_bool(data.get("config_change_required")),
+        kbv_change_required=_as_bool(data.get("kbv_change_required")),
         confluence_title=title,
     )
     processed.confluence_body = render_storage(processed)
@@ -232,6 +242,27 @@ def render_storage(item: ProcessedItem) -> str:
 
     area = f"<h2>Bereich</h2><p>{area_badges(item.areas)}</p>" if item.areas else ""
 
+    security_relevant = "Security" in item.areas
+
+    def _yesno(value: bool) -> str:
+        return "<strong>Ja</strong>" if value else "Nein"
+
+    assessment_rows = "".join(
+        f"<li>{label}: {_yesno(value)}</li>"
+        for label, value in (
+            ("Auswirkung auf Daten-/Informationsschutz", item.data_protection_impact),
+            ("Auswirkung auf allgemeine IT-Landschaft", item.it_landscape_impact),
+            ("Konfiguration der Plattform anpassen", item.config_change_required),
+            ("KBV / Anlage anpassen", item.kbv_change_required),
+        )
+    )
+    notes = ""
+    if item.data_protection_impact:
+        notes += "<p>→ ISB und/oder DSB zum monatlichen Treffen einladen.</p>"
+    if security_relevant:
+        notes += "<p>→ Security-relevant: erneute Risikobewertung des Services notwendig.</p>"
+    assessment = f"<h2>Bewertung</h2><ul>{assessment_rows}</ul>{notes}"
+
     actions = ""
     if item.action_items:
         lis = "".join(f"<li>{esc(a)}</li>" for a in item.action_items)
@@ -251,6 +282,7 @@ def render_storage(item: ProcessedItem) -> str:
         f"{area}"
         f"{decision}"
         f"{cab}"
+        f"{assessment}"
         f"{recommended}"
         f"{actions}"
         f"{link}"

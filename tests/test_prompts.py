@@ -60,3 +60,17 @@ def test_parse_response_areas_and_badges():
     result = parse_response(raw, _item())
     assert result.areas == ["Admin / IT", "Security"]
     assert "Bereich" in result.confluence_body
+
+
+def test_assessment_flags_render():
+    raw = (
+        '{"summary":"s","areas":["security"],'
+        '"data_protection_impact":true,"config_change_required":true}'
+    )
+    result = parse_response(raw, _item())
+    assert result.data_protection_impact is True
+    assert result.config_change_required is True
+    body = result.confluence_body
+    assert "Bewertung" in body
+    assert "ISB und/oder DSB" in body  # triggered by data protection
+    assert "Risikobewertung" in body  # triggered by Security area

@@ -189,6 +189,8 @@ function render(){
       +(e.target_quarter?`<span class="chip">${esc(e.target_quarter)}</span>`:'')
       +(e.cab_required?'<span class="chip" style="background:#fde8e8;color:#b42318">CAB</span>':'');
     const areaChecks=AREAS.map(a=>`<label class="check" style="margin-top:0"><input type="checkbox" ${(e.areas||[]).includes(a)?'checked':''} onchange="toggleItemArea(${i},'${a}')"> ${a}</label>`).join('');
+    const ASSESS=[['data_protection_impact','Datenschutz'],['it_landscape_impact','IT-Landschaft'],['config_change_required','Konfig anpassen'],['kbv_change_required','KBV/Anlage']];
+    const assessChecks=ASSESS.map(([k,lbl])=>`<label class="check" style="margin-top:0"><input type="checkbox" ${e[k]?'checked':''} onchange="upd(${i},'${k}',this.checked)"> ${lbl}</label>`).join('');
     return `<div class="card ${it.ignored?'ignored':''}" id="card${i}">
       <div class="chead">
         <span class="num">${i+1}</span>
@@ -203,6 +205,8 @@ function render(){
         <div class="chips">${chips}</div>
         <label>Bereich</label>
         <div class="row" style="gap:18px">${areaChecks}</div>
+        <label>Bewertung</label>
+        <div class="row" style="gap:18px">${assessChecks}</div>
         <div class="row">
           <div>${field('Ziel-Quartal',e.target_quarter,`upd(${i},'target_quarter',this.value)`)}</div>
           <div><label>Entscheidung</label><select onchange="upd(${i},'decision',this.value);render()">${opts}</select></div>

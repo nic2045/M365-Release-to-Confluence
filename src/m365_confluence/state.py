@@ -30,6 +30,10 @@ class ItemState:
     cab_required: bool = False
     cab_recommendation: str = ""
     areas: list[str] = field(default_factory=list)
+    data_protection_impact: bool = False
+    it_landscape_impact: bool = False
+    config_change_required: bool = False
+    kbv_change_required: bool = False
     summary: str = ""
     has_page: bool = False
     slipped: bool = False
@@ -89,6 +93,10 @@ class StateStore:
             cab_required=processed.cab_required,
             cab_recommendation=processed.cab_recommendation,
             areas=list(processed.areas),
+            data_protection_impact=processed.data_protection_impact,
+            it_landscape_impact=processed.it_landscape_impact,
+            config_change_required=processed.config_change_required,
+            kbv_change_required=processed.kbv_change_required,
             summary=processed.summary,
             has_page=has_page,
             slipped=processed.slipped,

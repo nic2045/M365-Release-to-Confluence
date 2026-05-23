@@ -52,6 +52,11 @@ class ProcessedItem:
     cab_required: bool = False  # should the Change Advisory Board review this?
     cab_recommendation: str = ""  # recommendation for the Change Advisory Board
     areas: list[str] = field(default_factory=list)  # End User / Admin · IT / Security / Compliance
+    # Monthly-meeting assessment flags
+    data_protection_impact: bool = False  # affects data/information protection -> invite ISB/DSB
+    it_landscape_impact: bool = False  # affects the general IT landscape
+    config_change_required: bool = False  # a platform configuration change is needed
+    kbv_change_required: bool = False  # the works agreement (KBV) / an annex must be updated
     slipped: bool = False  # target quarter moved later than previously seen
     previous_quarter: str = ""  # the earlier target quarter, when slipped
     confluence_title: str = ""

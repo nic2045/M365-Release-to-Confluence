@@ -66,6 +66,10 @@ def draft_from(item: ChangeItem, processed: ProcessedItem, make_page: bool) -> d
             "cab_required": processed.cab_required,
             "cab_recommendation": processed.cab_recommendation,
             "areas": list(processed.areas),
+            "data_protection_impact": processed.data_protection_impact,
+            "it_landscape_impact": processed.it_landscape_impact,
+            "config_change_required": processed.config_change_required,
+            "kbv_change_required": processed.kbv_change_required,
         },
         "make_page": make_page,
         "ignored": False,
@@ -105,6 +109,10 @@ def draft_to(draft: dict) -> tuple[ChangeItem, ProcessedItem, bool]:
         cab_required=bool(e.get("cab_required")),
         cab_recommendation=e.get("cab_recommendation", ""),
         areas=list(e.get("areas") or []),
+        data_protection_impact=bool(e.get("data_protection_impact")),
+        it_landscape_impact=bool(e.get("it_landscape_impact")),
+        config_change_required=bool(e.get("config_change_required")),
+        kbv_change_required=bool(e.get("kbv_change_required")),
         confluence_title=e.get("confluence_title", ""),
     )
     return item, processed, bool(draft.get("make_page", False))
