@@ -79,8 +79,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--worldwide-only",
-        action="store_true",
-        help="Only roadmap items for the Worldwide cloud instance (drops GCC/GCC High/DoD).",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Roadmap: keep only the Worldwide cloud instance (default on; "
+        "use --no-worldwide-only to include GCC/GCC High/DoD).",
     )
     parser.add_argument(
         "--force",
@@ -280,7 +282,9 @@ def main(argv: list[str] | None = None) -> int:
             action_required=args.action_required or f.action_required,
             products=products,
             categories=args.category if args.category is not None else (f.categories or None),
-            worldwide_only=args.worldwide_only or f.worldwide_only,
+            worldwide_only=(
+                args.worldwide_only if args.worldwide_only is not None else f.worldwide_only
+            ),
             dry_run=args.dry_run,
             force=args.force,
             item_pages=args.item_pages,
