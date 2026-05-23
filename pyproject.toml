@@ -44,6 +44,11 @@ m365-timeline = "m365_confluence.timeline_cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Ship the module UI bundle (vendored design-system + module assets) so a host
+# that installs this package can serve the standalone view from the wheel.
+"m365_confluence.ui" = ["static/**/*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py39"
@@ -54,6 +59,7 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/m365_confluence/ui/app.py" = ["E501"]
+"src/m365_confluence/ui/view.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,22 @@
+/* Design-system base — reset + element defaults. Token-driven, no layout.
+ * Part of the vendored bundle (see tokens.css header). */
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { height:100%; }
+body {
+  font-family:var(--font-ui);
+  color:var(--text);
+  background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+a { color:var(--accent); text-decoration:none; }
+a:hover { opacity:.85; }
+h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:.01em; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:7px 8px; font-size:11px; color:var(--text2); text-transform:uppercase; border-bottom:1px solid var(--border); }
+td { padding:8px 8px; border-bottom:1px solid var(--border); }
+tbody tr:last-child td { border-bottom:none; }
+::selection { background:color-mix(in srgb, var(--accent) 24%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  * { animation:none !important; transition:none !important; }
+}

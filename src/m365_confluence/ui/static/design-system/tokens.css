@@ -1,0 +1,44 @@
+/* Design-system tokens — SINGLE SOURCE OF TRUTH for the platform look.
+ *
+ * Canonical copy lives in JIRA_WeeklyUpdater/static/design-system/. Modules
+ * (e.g. m365_confluence) carry a VENDORED copy so they render the same look
+ * standalone, without importing the host. Sync with design-system/sync.sh.
+ *
+ * Only design primitives belong here: colour/space/type tokens, dark-mode
+ * overrides, and shared keyframes. No component or layout rules. */
+:root {
+  color-scheme: light dark;
+  --bg:#f2f2f7; --surface:#fff; --surface2:#f2f2f7;
+  --surface3:rgba(255,255,255,.58);
+  --border:#e0e0e5; --text:#1d1d1f; --text2:#6e6e73;
+  --accent:#0071e3; --ok:#34c759; --warn:#ff9500; --danger:#ff3b30;
+  --tab-jira:#0071e3;
+  --tab-planner:#0f766e;
+  --tab-blueant:#b45309;
+  --tab-reports:#14532d;
+  --tab-mentions:#ff9f0a;
+  --tab-outlook:#0a84ff;
+  --font-ui:"Avenir Next","SF Pro Text","Segoe UI",sans-serif;
+  --font-display:"Avenir Next Condensed","SF Pro Display","Trebuchet MS",sans-serif;
+  --r:22px; --shadow:0 10px 28px rgba(15,23,42,.08);
+  --shadow-soft:0 16px 42px rgba(15,23,42,.08);
+  --line-soft:color-mix(in srgb, var(--border) 68%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  /* Blue-tinted slate instead of flat neutral grey, so the dark theme keeps
+     the app's blue character rather than reading as monochrome black. */
+  :root { --bg:#1b2233; --surface:#252d40; --surface2:#2e374d; --surface3:rgba(46,55,77,.6); --border:#3d4760; --text:#f4f6fb; --text2:#abb4cc; --shadow:0 10px 30px rgba(0,0,0,.26); --shadow-soft:0 16px 44px rgba(0,0,0,.28); --line-soft:color-mix(in srgb, var(--border) 60%, transparent); }
+}
+@keyframes riseIn {
+  from { opacity:0; transform:translateY(10px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@keyframes fadeInSoft {
+  from { opacity:0; }
+  to { opacity:1; }
+}
+@keyframes skeletonShimmer {
+  0%   { background-position:200% 0; }
+  100% { background-position:-200% 0; }
+}
+@keyframes dsSpin { to { transform:rotate(360deg); } }
