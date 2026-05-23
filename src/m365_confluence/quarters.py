@@ -33,6 +33,10 @@ _MONTH_YEAR_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Public month-name -> number map (also matches short names via the first 3 letters).
+MONTHS = dict(_MONTHS)
+MONTHS.update({name[:3]: num for name, num in _MONTHS.items()})
+
 
 def quarter_from_date(dt: datetime) -> str:
     return f"Q{(dt.month - 1) // 3 + 1} {dt.year}"

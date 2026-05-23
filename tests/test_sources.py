@@ -54,6 +54,36 @@ def test_roadmap_mapping():
     assert "featureid=98765" in item.url
 
 
+def test_roadmap_v2_mapping():
+    raw = {
+        "id": 555,
+        "title": "V2 feature",
+        "description": "desc",
+        "status": "Rolling out",
+        "products": ["Microsoft Teams"],
+        "cloudInstances": ["Worldwide (Standard Multi-Tenant)", "GCC"],
+        "platforms": ["Desktop", "Web"],
+        "releaseRings": ["General Availability", "Targeted Release"],
+        "moreInfoUrls": ["https://learn.microsoft.com/x"],
+        "availabilities": [
+            {"ring": "Targeted Release", "year": 2026, "month": "July"},
+            {"ring": "General Availability", "year": 2026, "month": "September"},
+        ],
+        "created": "2026-03-01T00:00:00Z",
+        "modified": "2026-04-01T00:00:00Z",
+    }
+    item = RoadmapSource._map(raw)
+    assert item.id == "555"
+    assert item.products == ["Microsoft Teams"]
+    assert item.release_phases == ["General Availability", "Targeted Release"]
+    assert "Worldwide (Standard Multi-Tenant)" in item.cloud_instances
+    assert item.platforms == ["Desktop", "Web"]
+    assert item.url == "https://learn.microsoft.com/x"
+    # GA availability (Sep 2026) is authoritative -> Q3 2026
+    assert item.release_date is not None
+    assert item.release_date.year == 2026 and item.release_date.month == 9
+
+
 def test_features_accepts_list_and_wrapped():
     from m365_confluence.sources.roadmap import _features
 
