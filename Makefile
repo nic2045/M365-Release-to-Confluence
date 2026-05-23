@@ -5,6 +5,8 @@ CLI = $(PY) -m m365_confluence.cli
 UI = $(PY) -m m365_confluence.ui.app
 SOURCE ?= roadmap
 LIMIT ?= 5
+FORCE ?=
+FORCE_FLAG := $(if $(FORCE),--force,)
 
 # Use uv if available (faster), otherwise fall back to pip.
 UV := $(shell command -v uv 2>/dev/null)
@@ -43,8 +45,8 @@ products:  ## List the products found in the source(s)
 run:  ## Real run: publish to Confluence (SOURCE= overridable)
 	$(CLI) --source $(SOURCE)
 
-review:  ## Produce editable drafts (review.json) without publishing
-	$(CLI) --source $(SOURCE) --review-out review.json -v
+review:  ## Produce editable drafts (review.json), no publish (LIMIT=, FORCE=1 overridable)
+	$(CLI) --source $(SOURCE) --limit $(LIMIT) $(FORCE_FLAG) --review-out review.json -v
 
 publish-review:  ## Publish edited drafts from review.json to Confluence
 	$(CLI) --from-review review.json
