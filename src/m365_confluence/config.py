@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -26,6 +26,14 @@ def _require_any(*names: str) -> str:
         if value:
             return value
     raise ConfigError(f"Missing required environment variable (one of): {', '.join(names)}")
+
+
+def _split_list(value: str) -> list[str]:
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def _as_bool(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _clean_token(value: str) -> str:
@@ -138,11 +146,33 @@ class ConfluenceConfig:
 
 
 @dataclass
+class FilterConfig:
+    """Default relevance filters; overridable per run via CLI flags."""
+
+    products: list[str] = field(default_factory=list)
+    categories: list[str] = field(default_factory=list)
+    major_only: bool = False
+    action_required: bool = False
+    quarter: str = ""
+
+    @classmethod
+    def from_env(cls) -> FilterConfig:
+        return cls(
+            products=_split_list(os.getenv("FILTER_PRODUCTS", "")),
+            categories=_split_list(os.getenv("FILTER_CATEGORIES", "")),
+            major_only=_as_bool(os.getenv("FILTER_MAJOR_ONLY")),
+            action_required=_as_bool(os.getenv("FILTER_ACTION_REQUIRED")),
+            quarter=os.getenv("FILTER_QUARTER", "").strip(),
+        )
+
+
+@dataclass
 class Config:
     graph: GraphConfig | None
     roadmap: RoadmapConfig | None
     ai: AIConfig
     confluence: ConfluenceConfig | None
+    filters: FilterConfig
 
     @classmethod
     def load(
@@ -158,4 +188,5 @@ class Config:
             roadmap=RoadmapConfig.from_env() if use_roadmap else None,
             ai=AIConfig.from_env(),
             confluence=ConfluenceConfig.from_env() if require_confluence else None,
+            filters=FilterConfig.from_env(),
         )

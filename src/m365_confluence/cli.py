@@ -159,15 +159,17 @@ def main(argv: list[str] | None = None) -> int:
             use_message_center=use_message_center,
             use_roadmap=use_roadmap,
         )
+        # CLI overrides config defaults; config (.env) fills in when a flag is absent.
+        f = config.filters
         result = run(
             config,
             since_days=args.since_days,
             limit=args.limit,
-            quarter=args.quarter,
-            major_only=args.major_only,
-            action_required=args.action_required,
-            products=args.product,
-            categories=args.category,
+            quarter=args.quarter if args.quarter is not None else (f.quarter or None),
+            major_only=args.major_only or f.major_only,
+            action_required=args.action_required or f.action_required,
+            products=args.product if args.product is not None else (f.products or None),
+            categories=args.category if args.category is not None else (f.categories or None),
             dry_run=args.dry_run,
             force=args.force,
             title_prefix=args.title_prefix,

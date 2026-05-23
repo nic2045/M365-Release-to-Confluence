@@ -35,3 +35,20 @@ def test_missing_token_raises(monkeypatch):
     _base_env(monkeypatch)
     with pytest.raises(ConfigError):
         ConfluenceConfig.from_env()
+
+
+def test_filter_config_from_env(monkeypatch):
+    from m365_confluence.config import FilterConfig
+
+    monkeypatch.setenv("FILTER_PRODUCTS", "Teams, Exchange ,")
+    monkeypatch.setenv("FILTER_MAJOR_ONLY", "true")
+    monkeypatch.setenv("FILTER_QUARTER", "Q3 2026")
+    monkeypatch.delenv("FILTER_CATEGORIES", raising=False)
+    monkeypatch.delenv("FILTER_ACTION_REQUIRED", raising=False)
+
+    f = FilterConfig.from_env()
+    assert f.products == ["Teams", "Exchange"]
+    assert f.major_only is True
+    assert f.action_required is False
+    assert f.quarter == "Q3 2026"
+    assert f.categories == []
