@@ -7,7 +7,7 @@
   "bump-patch-for-minor-pre-major": true,
   "packages": {
     ".": {
-      "package-name": "pyshell-starter",
+      "package-name": "m365-release-to-confluence",
       "extra-files": [
         {
           "type": "toml",
@@ -16,11 +16,7 @@
         },
         {
           "type": "generic",
-          "path": "powershell/PyShellStarter.psd1"
-        },
-        {
-          "type": "generic",
-          "path": "src/pyshell_starter/__init__.py"
+          "path": "src/m365_confluence/__init__.py"
         }
       ]
     }
