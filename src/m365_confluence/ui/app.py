@@ -7,6 +7,7 @@ Requires the 'ui' extra: pip install -e ".[ui]"
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -52,6 +53,7 @@ INDEX_HTML = """<!doctype html>
  .genbar{max-width:980px;margin:10px auto 0;padding:12px 16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px}
  .genbar select,.genbar input[type=text],.genbar input[type=number]{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit}
  .gopt,.gchk{font-size:12px;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+ .pbox{display:flex;gap:6px;flex-wrap:wrap;align-items:center;max-height:120px;overflow:auto;width:100%}
  .filters{max-width:980px;margin:6px auto 0;padding:10px 24px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
  .fgroup{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
  .flabel{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
@@ -90,7 +92,6 @@ INDEX_HTML = """<!doctype html>
   <span class="flabel">Entwürfe erzeugen:</span>
   <select id="g_source"><option value="roadmap">Roadmap</option><option value="message-center">Message Center</option><option value="both">Beide</option></select>
   <label class="gopt">Limit <input type="number" id="g_limit" min="1" style="width:64px" value="20"></label>
-  <label class="gopt">Produkte <input type="text" id="g_products" placeholder="Teams, Exchange" style="width:160px"></label>
   <label class="gopt">Quartal <input type="text" id="g_quarter" placeholder="Q3 2026" style="width:90px"></label>
   <label class="gchk"><input type="checkbox" id="g_ww" checked> Worldwide</label>
   <label class="gchk"><input type="checkbox" id="g_new" checked> nur neue Rollouts</label>
@@ -99,6 +100,10 @@ INDEX_HTML = """<!doctype html>
   <label class="gchk"><input type="checkbox" id="g_force"> Force</label>
   <button onclick="generate()">Erzeugen (KI)</button>
   <button class="ghost" style="color:#0a5bd6;background:#eef1f5" onclick="loadProducts()">Produkte laden</button>
+  <button class="ghost" style="color:#0a5bd6;background:#eef1f5" onclick="saveSettings(true)">Einstellungen speichern</button>
+  <div style="flex-basis:100%;height:0"></div>
+  <span class="flabel">Produkte:</span>
+  <div id="g_products_box" class="pbox"></div>
 </div>
 <div id="filters" class="filters"></div>
 <main id="list"></main>
@@ -143,6 +148,8 @@ function toggleC(v){flip(activeChan,v);}
 function toggleP(v){flip(activeProd,v);}
 function toggleA(v){flip(activeArea,v);}
 async function load(){
+  try{const sr=await fetch('/api/settings');applySettings(await sr.json());}catch(e){}
+  renderProductChecks([]);
   const r=await fetch('/api/drafts');const d=await r.json();drafts=d.items||[];
   activeQ=null;activeChan=null;activeProd=null;activeArea=null;renderFilters();render();
   setStatus(drafts.length+' Einträge');
@@ -213,20 +220,47 @@ function upd(i,k,v){drafts[i].edit[k]=v;}
 function updTop(i,k,v){drafts[i][k]=v;}
 function toggleItemArea(i,a){const e=drafts[i].edit;e.areas=e.areas||[];const x=e.areas.indexOf(a);x>=0?e.areas.splice(x,1):e.areas.push(a);render();}
 function toggleIgnore(i){drafts[i].ignored=!drafts[i].ignored;render();}
-function csv(id){return document.getElementById(id).value.split(',').map(s=>s.trim()).filter(Boolean);}
-async function generate(){
-  const limit=parseInt(document.getElementById('g_limit').value)||null;
-  const body={
+let genProducts=new Set();
+function renderProductChecks(all){
+  const names=[...new Set([...genProducts, ...(all||[])])].sort();
+  const box=document.getElementById('g_products_box');
+  box.innerHTML = names.length
+    ? names.map(n=>`<label class="fchk"><input type="checkbox" ${genProducts.has(n)?'checked':''} onchange="toggleGenProduct('${n.replace(/'/g,"")}')"> ${esc(n)}</label>`).join('')
+    : '<span class="meta">— „Produkte laden" klicken, um zu wählen —</span>';
+}
+function toggleGenProduct(n){genProducts.has(n)?genProducts.delete(n):genProducts.add(n);}
+function gatherSettings(){
+  return {
     source:document.getElementById('g_source').value,
-    limit:limit,
-    products:csv('g_products'),
+    limit:parseInt(document.getElementById('g_limit').value)||null,
     quarter:document.getElementById('g_quarter').value.trim(),
+    products:[...genProducts],
     worldwide_only:document.getElementById('g_ww').checked,
     new_rollouts_only:document.getElementById('g_new').checked,
     major_only:document.getElementById('g_major').checked,
     action_required:document.getElementById('g_action').checked,
     force:document.getElementById('g_force').checked,
   };
+}
+function applySettings(s){
+  if(!s||!Object.keys(s).length)return;
+  if(s.source)document.getElementById('g_source').value=s.source;
+  if(s.limit)document.getElementById('g_limit').value=s.limit;
+  if(s.quarter!=null)document.getElementById('g_quarter').value=s.quarter;
+  if(typeof s.worldwide_only==='boolean')document.getElementById('g_ww').checked=s.worldwide_only;
+  if(typeof s.new_rollouts_only==='boolean')document.getElementById('g_new').checked=s.new_rollouts_only;
+  if(typeof s.major_only==='boolean')document.getElementById('g_major').checked=s.major_only;
+  if(typeof s.action_required==='boolean')document.getElementById('g_action').checked=s.action_required;
+  if(typeof s.force==='boolean')document.getElementById('g_force').checked=s.force;
+  genProducts=new Set(s.products||[]);
+}
+async function saveSettings(notify){
+  await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(gatherSettings())});
+  if(notify)setStatus('Einstellungen gespeichert.');
+}
+async function generate(){
+  const body=gatherSettings();
+  await saveSettings(false);
   setStatus('Erzeuge Entwürfe via KI… (kann etwas dauern)');
   const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d=await r.json();
@@ -240,8 +274,8 @@ async function loadProducts(){
   const r=await fetch('/api/products?source='+encodeURIComponent(source));
   const d=await r.json();
   if(d.error){setStatus('Fehler: '+d.error);return;}
-  const names=(d.products||[]).map(p=>p.name+' ('+p.count+')').join(', ');
-  setStatus((d.products||[]).length+' Produkte: '+names);
+  renderProductChecks((d.products||[]).map(p=>p.name));
+  setStatus((d.products||[]).length+' Produkte geladen.');
 }
 async function save(){
   setStatus('Speichere…');
@@ -270,6 +304,26 @@ def create_app(review_file: str) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
         return INDEX_HTML
+
+    settings_file = str(Path(review_file).with_name("ui_settings.json"))
+
+    @app.get("/api/settings")
+    def get_settings() -> dict:
+        p = Path(settings_file)
+        if p.exists():
+            try:
+                return json.loads(p.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                return {}
+        return {}
+
+    @app.post("/api/settings")
+    async def post_settings(request: Request) -> dict:
+        data = await request.json()
+        Path(settings_file).write_text(
+            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        return {"saved": True}
 
     @app.get("/api/drafts")
     def get_drafts() -> dict:

@@ -92,3 +92,12 @@ def test_generate_endpoint(tmp_path, monkeypatch):
     r = client.post("/api/generate", json={"source": "roadmap", "limit": 5})
     assert r.status_code == 200
     assert r.json()["count"] == 1
+
+
+def test_settings_roundtrip(tmp_path):
+    client = TestClient(create_app(str(tmp_path / "review.json")))
+    assert client.get("/api/settings").json() == {}
+    payload = {"source": "both", "limit": 10, "products": ["Teams"], "worldwide_only": False}
+    assert client.post("/api/settings", json=payload).json()["saved"] is True
+    assert client.get("/api/settings").json() == payload
+    assert (tmp_path / "ui_settings.json").exists()
