@@ -59,6 +59,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Only items touching this product (repeatable; substring match, e.g. Teams).",
     )
     parser.add_argument(
+        "--check-confluence",
+        action="store_true",
+        help="Diagnose Confluence auth (shows masked token + API probe), then exit.",
+    )
+    parser.add_argument(
         "--list-products",
         action="store_true",
         help="List the products found in the source(s) with counts, then exit "
@@ -209,9 +214,49 @@ def _interactive_pick(products: list[tuple[str, int]]) -> list[str]:
     return [products[i][0] for i in indices]
 
 
+def _check_confluence() -> int:
+    """Diagnose Confluence auth: show the loaded (masked) token and probe the API."""
+    import requests
+
+    try:
+        config = Config.load(use_message_center=False, use_roadmap=False)
+    except ConfigError as exc:
+        print(f"Configuration error: {exc}", file=sys.stderr)
+        return 2
+    c = config.confluence
+    tok = c.token
+    preview = f"{tok[:4]}…{tok[-4:]}" if len(tok) >= 8 else "(short)"
+    has_ws = any(ch.isspace() for ch in tok)
+    print("Confluence configuration:")
+    print(f"  base_url     : {c.base_url}")
+    print(f"  space_key    : {c.space_key}")
+    print(f"  parent_page  : {c.parent_page_id or '(none)'}")
+    print(f"  backend      : {c.backend}")
+    print(f"  token length : {len(tok)}")
+    print(f"  token preview: {preview}")
+    print(f"  token has whitespace inside: {has_ws}")
+    headers = {"Authorization": f"Bearer {tok}", "Accept": "application/json"}
+    for path in ("/rest/api/user/current", f"/rest/api/space/{c.space_key}"):
+        url = f"{c.base_url}{path}"
+        try:
+            r = requests.get(url, headers=headers, timeout=20)
+            body = r.text[:160].replace("\n", " ")
+            print(f"  GET {path} -> {r.status_code}  {body}")
+        except requests.RequestException as exc:
+            print(f"  GET {path} -> ERROR {exc}")
+    print(
+        "\nHint: 200 = token OK. 401 = token rejected (wrong/expired, or Python loaded a "
+        "different value than your PowerShell shell). Compare the preview above with your real PAT."
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     _configure_logging(verbose=args.verbose, debug_http=args.debug_http)
+
+    if args.check_confluence:
+        return _check_confluence()
 
     use_message_center = args.source in {"both", "message-center"}
     use_roadmap = args.source in {"both", "roadmap"}
