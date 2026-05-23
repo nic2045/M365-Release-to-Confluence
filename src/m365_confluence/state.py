@@ -8,12 +8,12 @@ quarterly dashboard even when most items are skipped in a given run.
 from __future__ import annotations
 
 import hashlib
-import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
 from m365_confluence.models import ChangeItem, ProcessedItem
+from m365_confluence.storage import JsonFileStateBackend, StateBackend
 
 
 @dataclass
@@ -49,21 +49,28 @@ def content_hash(item: ChangeItem) -> str:
 
 
 class StateStore:
-    def __init__(self, path: str | Path) -> None:
-        self.path = Path(path)
+    def __init__(
+        self,
+        path: str | Path | None = None,
+        *,
+        backend: StateBackend | None = None,
+    ) -> None:
+        if backend is None:
+            if path is None:
+                raise ValueError("StateStore requires either a path or a backend")
+            backend = JsonFileStateBackend(path)
+        self._backend = backend
         self._items: dict[str, ItemState] = {}
 
     def load(self) -> StateStore:
-        if self.path.exists():
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-            for key, data in raw.get("items", {}).items():
-                self._items[key] = ItemState(**data)
+        raw = self._backend.read()
+        for key, data in raw.get("items", {}).items():
+            self._items[key] = ItemState(**data)
         return self
 
     def save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"items": {k: asdict(v) for k, v in self._items.items()}}
-        self.path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        self._backend.write(payload)
 
     def get(self, key: str) -> ItemState | None:
         return self._items.get(key)

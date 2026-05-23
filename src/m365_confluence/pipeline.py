@@ -21,6 +21,7 @@ from m365_confluence.reporting import dashboard_title, quarter_dashboards
 from m365_confluence.review import draft_from, draft_to, load_drafts, save_drafts
 from m365_confluence.sources import MessageCenterSource, RoadmapSource, aggregate
 from m365_confluence.state import StateStore
+from m365_confluence.storage import DraftsBackend
 
 log = logging.getLogger("m365_confluence")
 
@@ -132,6 +133,8 @@ def run(
     review_out: str | None = None,
     confirm_over: int | None = None,
     confirm: Callable[[int, int], bool] | None = None,
+    state: StateStore | None = None,
+    drafts_backend: DraftsBackend | None = None,
 ) -> RunResult:
     since = None
     if since_days is not None:
@@ -152,9 +155,10 @@ def run(
         items = items[:limit]
     log.info("Aggregated %d change item(s) after filters", len(items))
 
-    state = StateStore(state_file).load()
+    state = (state if state is not None else StateStore(state_file)).load()
     provider = build_provider(config.ai)
-    need_confluence = not dry_run and not review_out
+    review_mode = bool(review_out) or drafts_backend is not None
+    need_confluence = not dry_run and not review_mode
     confluence = build_confluence(config.confluence) if need_confluence else None
 
     processed: list[ProcessedItem] = []
@@ -254,9 +258,14 @@ def run(
         make_page = _should_make_page(item, item_pages)
         prepared.append((item, result, make_page))
 
-    if review_out:
-        save_drafts(review_out, [draft_from(i, r, mp) for i, r, mp in prepared])
-        log.info("Wrote %d draft(s) to %s (nothing published)", len(prepared), review_out)
+    if review_mode:
+        drafts = [draft_from(i, r, mp) for i, r, mp in prepared]
+        if drafts_backend is not None:
+            drafts_backend.write(drafts)
+            log.info("Wrote %d draft(s) to backend (nothing published)", len(prepared))
+        else:
+            save_drafts(review_out, drafts)
+            log.info("Wrote %d draft(s) to %s (nothing published)", len(prepared), review_out)
         return RunResult(
             fetched=len(items),
             processed=len(processed),
@@ -356,17 +365,24 @@ def _update_changelog(
 
 def run_from_review(
     config: Config,
-    review_file: str,
+    review_file: str | None = None,
     *,
     dry_run: bool = False,
     group_by: str = "service",
     title_prefix: str = "[M365] ",
     state_file: str = "m365_state.json",
     changelog_file: str = "m365_changelog.json",
+    state: StateStore | None = None,
+    drafts_backend: DraftsBackend | None = None,
 ) -> RunResult:
     """Publish edited review drafts to Confluence without calling the LLM."""
-    drafts = load_drafts(review_file)
-    state = StateStore(state_file).load()
+    if drafts_backend is not None:
+        drafts = drafts_backend.read()
+    elif review_file is not None:
+        drafts = load_drafts(review_file)
+    else:
+        raise ValueError("run_from_review requires a review_file or a drafts_backend")
+    state = (state if state is not None else StateStore(state_file)).load()
     confluence = None if dry_run else build_confluence(config.confluence)
 
     prepared: list[tuple[ChangeItem, ProcessedItem, bool]] = []
