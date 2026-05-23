@@ -1,4 +1,4 @@
-.PHONY: help dev install lint format check test run dry-run products review publish-review ui clean
+.PHONY: help dev install lint format check test run dry-run products pick review publish-review ui clean
 
 PY ?= python3
 CLI = $(PY) -m m365_confluence.cli
@@ -7,6 +7,8 @@ SOURCE ?= roadmap
 LIMIT ?= 5
 FORCE ?=
 FORCE_FLAG := $(if $(FORCE),--force,)
+# Pass any extra CLI flags through, e.g. ARGS="--product Teams --quarter 'Q3 2026' --major-only"
+ARGS ?=
 
 # Use uv if available (faster), otherwise fall back to pip.
 UV := $(shell command -v uv 2>/dev/null)
@@ -36,17 +38,20 @@ check:  ## Lint + format check + tests (what CI runs)
 test:  ## Run the test suite
 	$(PY) -m pytest -q
 
-dry-run:  ## Preview without writing to Confluence (SOURCE=, LIMIT= overridable)
-	$(CLI) --source $(SOURCE) --limit $(LIMIT) --dry-run -v
+dry-run:  ## Preview, no Confluence write (SOURCE=, LIMIT=, ARGS="--product Teams ...")
+	$(CLI) --source $(SOURCE) --limit $(LIMIT) --dry-run -v $(ARGS)
 
-products:  ## List the products found in the source(s)
+products:  ## List products in the source(s) (SOURCE= overridable)
 	$(CLI) --source $(SOURCE) --list-products
 
-run:  ## Real run: publish to Confluence (SOURCE= overridable)
-	$(CLI) --source $(SOURCE)
+pick:  ## Interactively pick products, then process (SOURCE=, LIMIT=, ARGS= overridable)
+	$(CLI) --source $(SOURCE) --limit $(LIMIT) --pick-products $(ARGS)
 
-review:  ## Produce editable drafts (review.json), no publish (LIMIT=, FORCE=1 overridable)
-	$(CLI) --source $(SOURCE) --limit $(LIMIT) $(FORCE_FLAG) --review-out review.json -v
+run:  ## Real run: publish to Confluence (SOURCE=, ARGS= for filters)
+	$(CLI) --source $(SOURCE) $(ARGS)
+
+review:  ## Editable drafts (review.json), no publish (LIMIT=, FORCE=1, ARGS= for filters)
+	$(CLI) --source $(SOURCE) --limit $(LIMIT) $(FORCE_FLAG) --review-out review.json -v $(ARGS)
 
 publish-review:  ## Publish edited drafts from review.json to Confluence
 	$(CLI) --from-review review.json

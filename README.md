@@ -138,7 +138,18 @@ All configuration is via environment variables (see `.env.example`):
 make dev        # editable install with all extras
 make check      # lint + format check + tests (what CI runs)
 make dry-run    # preview a run without writing to Confluence
+make products   # discovery: list products in the source(s)
+make pick       # interactively pick products, then process
 make help       # list all targets
+```
+
+Filters and discovery work through make too. Pass any CLI flags via `ARGS`:
+
+```bash
+make review LIMIT=20 ARGS="--product Teams --quarter 'Q3 2026' --major-only"
+make dry-run SOURCE=both ARGS="--no-worldwide-only --action-required"
+make run ARGS="--category planForChange"
+make products SOURCE=both
 ```
 
 Equivalent without make:
