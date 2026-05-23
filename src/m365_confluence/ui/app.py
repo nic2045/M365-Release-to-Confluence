@@ -183,7 +183,7 @@ function render(){
        (e.areas||[]).map(a=>`<span class="chip area">${esc(a)}</span>`).join('')
       +(s.status?`<span class="chip stage">Stufe: ${esc(s.status)}</span>`:'')
       +(ct?`<span class="chip ${ct==='Neu'?'new':'upd'}">${esc(ct)}</span>`:'')
-      +(rel?`<span class="chip rel">${esc(rel)}</span>`:'')
+      +(rel?`<span class="chip rel">Relevanz: ${esc(rel)}</span>`:'')
       +(s.release_phases||[]).map(p=>`<span class="chip chan">${esc(p)}</span>`).join('')
       +(s.products||[]).map(p=>`<span class="chip">${esc(p)}</span>`).join('')
       +(e.target_quarter?`<span class="chip">${esc(e.target_quarter)}</span>`:'')
