@@ -52,3 +52,12 @@ def test_roadmap_mapping():
     assert item.created is not None
     assert "General Availability" in item.tags
     assert "featureid=98765" in item.url
+
+
+def test_features_accepts_list_and_wrapped():
+    from m365_confluence.sources.roadmap import _features
+
+    assert _features([{"id": 1}]) == [{"id": 1}]
+    assert _features({"value": [{"id": 2}]}) == [{"id": 2}]
+    assert _features({"features": [{"id": 3}]}) == [{"id": 3}]
+    assert _features({"nope": 1}) == []

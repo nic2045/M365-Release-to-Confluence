@@ -73,14 +73,14 @@ class GraphConfig:
 
 @dataclass
 class RoadmapConfig:
-    api_url: str = "https://www.microsoft.com/releasecommunications/api/v1/m365"
+    api_url: str = "https://www.microsoft.com/releasecommunications/api/v2/m365"
 
     @classmethod
     def from_env(cls) -> RoadmapConfig:
         return cls(
             api_url=os.getenv(
                 "M365_ROADMAP_API_URL",
-                "https://www.microsoft.com/releasecommunications/api/v1/m365",
+                "https://www.microsoft.com/releasecommunications/api/v2/m365",
             ),
         )
 

@@ -25,6 +25,18 @@ def _parse_dt(value: str | None) -> datetime | None:
         return None
 
 
+def _features(payload: object) -> list[dict]:
+    """Accept a top-level list (v1) or an object wrapping the list (v2 variants)."""
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("value", "features", "results", "items", "data"):
+            inner = payload.get(key)
+            if isinstance(inner, list):
+                return inner
+    return []
+
+
 class RoadmapSource:
     name = "roadmap"
 
@@ -35,7 +47,7 @@ class RoadmapSource:
     def fetch(self) -> list[ChangeItem]:
         resp = self._session.get(self._config.api_url, timeout=_TIMEOUT)
         resp.raise_for_status()
-        return [self._map(feature) for feature in resp.json()]
+        return [self._map(feature) for feature in _features(resp.json())]
 
     @staticmethod
     def _map(feature: dict) -> ChangeItem:
