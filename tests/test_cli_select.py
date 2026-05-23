@@ -27,6 +27,7 @@ def test_approval_gate_redirects_to_review(monkeypatch, tmp_path):
     class _Result:
         fetched = processed = published = skipped = unchanged = slipped = new = changed = 0
         dashboards = 0
+        not_relevant = 0
         titles = []
 
     def fake_run(config, **kwargs):
@@ -46,6 +47,7 @@ def test_approval_gate_redirects_to_review(monkeypatch, tmp_path):
                     "major_only": False,
                     "action_required": False,
                     "worldwide_only": False,
+                    "new_rollouts_only": False,
                     "quarter": "",
                 },
             )()
@@ -70,6 +72,7 @@ def test_approve_allows_publish(monkeypatch, tmp_path):
     class _Result:
         fetched = processed = published = skipped = unchanged = slipped = new = changed = 0
         dashboards = 0
+        not_relevant = 0
         titles = []
 
     def fake_run(config, **kwargs):
@@ -89,6 +92,7 @@ def test_approve_allows_publish(monkeypatch, tmp_path):
                     "major_only": False,
                     "action_required": False,
                     "worldwide_only": False,
+                    "new_rollouts_only": False,
                     "quarter": "",
                 },
             )()

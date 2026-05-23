@@ -85,6 +85,13 @@ def _build_parser() -> argparse.ArgumentParser:
         "use --no-worldwide-only to include GCC/GCC High/DoD).",
     )
     parser.add_argument(
+        "--new-rollouts-only",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Roadmap: only items that newly reached rollout/live since the last run "
+        "(default on; use --no-new-rollouts-only to include everything).",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Reprocess all items, even unchanged ones (ignores the state cache).",
@@ -285,6 +292,11 @@ def main(argv: list[str] | None = None) -> int:
             worldwide_only=(
                 args.worldwide_only if args.worldwide_only is not None else f.worldwide_only
             ),
+            new_rollouts_only=(
+                args.new_rollouts_only
+                if args.new_rollouts_only is not None
+                else f.new_rollouts_only
+            ),
             dry_run=args.dry_run,
             force=args.force,
             item_pages=args.item_pages,
@@ -306,8 +318,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"Done. fetched={result.fetched} processed={result.processed} "
         f"new={result.new} changed={result.changed} unchanged={result.unchanged} "
-        f"skipped={result.skipped} slipped={result.slipped} "
-        f"dashboards={result.dashboards} ({mode}).",
+        f"not_relevant={result.not_relevant} skipped={result.skipped} "
+        f"slipped={result.slipped} dashboards={result.dashboards} ({mode}).",
         file=sys.stderr,
     )
     if auto_review:

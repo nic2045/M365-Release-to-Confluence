@@ -154,6 +154,7 @@ class FilterConfig:
     major_only: bool = False
     action_required: bool = False
     worldwide_only: bool = True
+    new_rollouts_only: bool = True
     quarter: str = ""
 
     @classmethod
@@ -164,6 +165,7 @@ class FilterConfig:
             major_only=_as_bool(os.getenv("FILTER_MAJOR_ONLY")),
             action_required=_as_bool(os.getenv("FILTER_ACTION_REQUIRED")),
             worldwide_only=_as_bool(os.getenv("FILTER_WORLDWIDE_ONLY", "true")),
+            new_rollouts_only=_as_bool(os.getenv("FILTER_NEW_ROLLOUTS_ONLY", "true")),
             quarter=os.getenv("FILTER_QUARTER", "").strip(),
         )
 

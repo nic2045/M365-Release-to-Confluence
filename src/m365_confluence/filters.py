@@ -6,6 +6,13 @@ from collections.abc import Sequence
 
 from m365_confluence.models import ChangeItem
 
+_LIVE_STATUSES = ("rolling out", "launched", "generally available", "live")
+
+
+def is_rollout_or_live(status: str) -> bool:
+    s = (status or "").lower()
+    return any(k in s for k in _LIVE_STATUSES)
+
 
 def is_worldwide(item: ChangeItem) -> bool:
     """True if the item has no cloud-instance info or includes a Worldwide instance.

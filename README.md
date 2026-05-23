@@ -69,6 +69,7 @@ m365-to-confluence --source roadmap --limit 10 --approve
 | `--pick-products` | Interactively multi-select products before running (numbers, ranges, or `all`). |
 | `--category NAME` | Only items in this MC category (repeatable, e.g. `planForChange`). |
 | `--worldwide-only` / `--no-worldwide-only` | Roadmap: keep only the Worldwide cloud instance. **On by default**; opt out with `--no-worldwide-only`. |
+| `--new-rollouts-only` / `--no-new-rollouts-only` | Roadmap: only items that newly reached rollout/live (Rolling out / Launched / Generally Available) since the last run. **On by default**. |
 | `--force` | Reprocess everything, ignoring the unchanged-item cache. |
 | `--item-pages {none,major,all}` | Individual page per feature: none, only major changes (default), or all. Dashboards are always created. |
 | `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |

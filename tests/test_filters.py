@@ -78,3 +78,36 @@ def test_worldwide_only():
 
     kept = apply_filters([ww, gcc, none], worldwide_only=True)
     assert [i.id for i in kept] == ["1", "3"]
+
+
+def test_is_rollout_or_live():
+    from m365_confluence.filters import is_rollout_or_live
+
+    assert is_rollout_or_live("Rolling out") is True
+    assert is_rollout_or_live("Launched") is True
+    assert is_rollout_or_live("Generally Available") is True
+    assert is_rollout_or_live("In development") is False
+    assert is_rollout_or_live("") is False
+
+
+def test_output_relevant():
+    from types import SimpleNamespace
+
+    from m365_confluence.pipeline import _output_relevant
+
+    rolling = _item("1")
+    rolling.source = "roadmap"
+    rolling.status = "Rolling out"
+    dev = _item("2")
+    dev.source = "roadmap"
+    dev.status = "In development"
+    mc = _item("3")
+    mc.source = "message_center"
+
+    assert _output_relevant(rolling, None) is True  # new + live
+    assert _output_relevant(dev, None) is False  # not live yet
+    prev_live = SimpleNamespace(status="Launched")
+    assert _output_relevant(rolling, prev_live) is False  # already live last run
+    prev_dev = SimpleNamespace(status="In development")
+    assert _output_relevant(rolling, prev_dev) is True  # transitioned to live
+    assert _output_relevant(mc, None) is True  # message center always relevant

@@ -13,7 +13,7 @@ from m365_confluence.ai.prompts import render_storage
 from m365_confluence.changelog import ChangelogStore, render_changelog_body
 from m365_confluence.config import Config
 from m365_confluence.confluence import ConfluenceClient
-from m365_confluence.filters import apply_filters
+from m365_confluence.filters import apply_filters, is_rollout_or_live
 from m365_confluence.models import ChangeItem, ProcessedItem
 from m365_confluence.quarters import derive_quarter, quarter_key
 from m365_confluence.reporting import dashboard_title, quarter_dashboards
@@ -35,6 +35,7 @@ class RunResult:
     new: int
     changed: int
     dashboards: int
+    not_relevant: int = 0
     titles: list[str] = field(default_factory=list)
 
 
@@ -58,6 +59,19 @@ def collect_products(config: Config) -> list[tuple[str, int]]:
             if product:
                 counter[product] += 1
     return sorted(counter.items(), key=lambda kv: (-kv[1], kv[0].lower()))
+
+
+def _output_relevant(item: ChangeItem, previous) -> bool:
+    """Roadmap items count only when newly rollout/live since the last run.
+
+    Message Center posts have no rollout status and are always relevant.
+    """
+    if item.source != "roadmap":
+        return True
+    if not is_rollout_or_live(item.status):
+        return False
+    # Already rollout/live last run -> not new.
+    return not (previous is not None and is_rollout_or_live(previous.status))
 
 
 def _should_make_page(item: ChangeItem, mode: str) -> bool:
@@ -88,6 +102,7 @@ def run(
     products: list[str] | None = None,
     categories: list[str] | None = None,
     worldwide_only: bool = False,
+    new_rollouts_only: bool = True,
     dry_run: bool = False,
     force: bool = False,
     item_pages: str = "major",
@@ -124,6 +139,7 @@ def run(
     prepared: list[tuple[ChangeItem, ProcessedItem, bool]] = []
     skipped = 0
     unchanged = 0
+    not_relevant = 0
     slipped = 0
     new_count = 0
     changed_count = 0
@@ -135,6 +151,11 @@ def run(
             log.info("[%d/%d] Unchanged, skipping %s", index, total, key)
             state.touch(key)
             unchanged += 1
+            continue
+
+        if new_rollouts_only and not _output_relevant(item, previous):
+            log.info("[%d/%d] Not a new rollout/live item, skipping %s", index, total, key)
+            not_relevant += 1
             continue
 
         log.info("[%d/%d] Processing %s ...", index, total, key)
@@ -190,6 +211,7 @@ def run(
             new=new_count,
             changed=changed_count,
             dashboards=0,
+            not_relevant=not_relevant,
             titles=[r.confluence_title for _, r, _ in prepared],
         )
 
@@ -219,6 +241,7 @@ def run(
         new=new_count,
         changed=changed_count,
         dashboards=dashboards,
+        not_relevant=not_relevant,
         titles=[r.confluence_title for _, r, _ in prepared],
     )
 
