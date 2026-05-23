@@ -41,12 +41,19 @@ cp .env.example .env        # then fill in the values (.env is gitignored)
 
 ## Usage
 
+> **Safe by default: nothing is written to Confluence without human approval.**
+> A normal run only produces editable drafts (`review.json`). Publishing happens via the
+> review UI ("Publish"), `--from-review`, or an explicit `--approve` on the command line.
+
 ```bash
-# Process changes from the last 30 days, both sources, without writing (preview):
+# Preview only, never writes:
 m365-to-confluence --since-days 30 --dry-run -v
 
-# Publish the 10 most recent roadmap items to Confluence:
+# Default run -> writes drafts to review.json, publishes NOTHING:
 m365-to-confluence --source roadmap --limit 10
+
+# Explicitly approve publishing to Confluence (e.g. an ad-hoc human run):
+m365-to-confluence --source roadmap --limit 10 --approve
 ```
 
 | Flag | Description |
@@ -68,6 +75,7 @@ m365-to-confluence --source roadmap --limit 10
 | `--title-prefix` | Prefix for generated page titles (default `[M365] `). |
 | `--review-out PATH` | Process items and write editable drafts to PATH; publish nothing. |
 | `--from-review PATH` | Publish edited drafts from PATH to Confluence without calling the LLM. |
+| `--approve` | Explicit human approval to write to Confluence. Without it a run only writes drafts. |
 | `--dry-run` | Process but do not write to Confluence (and do not save state). |
 | `-v` | Debug logging for this tool. |
 | `--debug-http` | Also show raw HTTP logs from httpx/anthropic/openai. |
@@ -138,6 +146,45 @@ ruff check .
 ruff format --check .
 python -m pytest
 ```
+
+## Production / Container
+
+One image runs either the **batch job** (scheduled) or the **review UI** (optional service).
+Configuration comes from environment variables; state/changelog/review files persist on a
+mounted volume (`/data`). Never bake secrets into the image.
+
+The recommended prod flow keeps a human in the loop: the **scheduled job refreshes drafts**
+(never writes to Confluence), and a person **approves via the UI** (or `--from-review`).
+
+```bash
+docker build -t m365-release-to-confluence .
+
+# Scheduled job: refresh drafts only (no --approve -> writes /data/review.json, publishes nothing)
+docker run --rm --env-file .env -v "$PWD/data:/data" m365-release-to-confluence \
+  m365-to-confluence --source both --since-days 2 --review-out /data/review.json \
+  --state-file /data/m365_state.json --changelog-file /data/m365_changelog.json
+
+# Review UI (human approval): edit, then click Publish
+docker run --rm -p 8765:8765 --env-file .env -v "$PWD/data:/data" m365-release-to-confluence \
+  m365-to-confluence-ui --host 0.0.0.0 --review-file /data/review.json
+```
+
+Or with compose: `docker compose up -d ui` (UI) and `docker compose run --rm job` (draft refresh).
+
+### Scheduling
+
+**Cron** (daily 06:00, draft refresh only — approval stays with a human in the UI):
+
+```cron
+0 6 * * * docker run --rm --env-file /opt/m365/.env -v /opt/m365/data:/data \
+  m365-release-to-confluence m365-to-confluence --source both --since-days 2 \
+  --review-out /data/review.json \
+  --state-file /data/m365_state.json --changelog-file /data/m365_changelog.json
+```
+
+**Kubernetes CronJob** (sketch): a `CronJob` running the same image/command daily (draft
+refresh), env from a `Secret`, `/data` on a `PersistentVolumeClaim`; the UI runs as a
+`Deployment`+`Service` for human review and approval.
 
 ## Layout
 

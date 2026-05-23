@@ -17,3 +17,86 @@ def test_parse_ignores_out_of_range_and_junk():
 
 def test_parse_blank():
     assert _parse_selection("", 3) == []
+
+
+def test_approval_gate_redirects_to_review(monkeypatch, tmp_path):
+    import m365_confluence.cli as cli
+
+    captured = {}
+
+    class _Result:
+        fetched = processed = published = skipped = unchanged = slipped = new = changed = 0
+        dashboards = 0
+        titles = []
+
+    def fake_run(config, **kwargs):
+        captured.update(kwargs)
+        return _Result()
+
+    def fake_load(**kwargs):
+        captured["require_confluence"] = kwargs.get("require_confluence")
+
+        class _C:
+            filters = type(
+                "F",
+                (),
+                {
+                    "products": [],
+                    "categories": [],
+                    "major_only": False,
+                    "action_required": False,
+                    "quarter": "",
+                },
+            )()
+
+        return _C()
+
+    monkeypatch.setattr(cli, "run", fake_run)
+    monkeypatch.setattr(cli.Config, "load", staticmethod(fake_load))
+    monkeypatch.chdir(tmp_path)
+
+    # No --approve -> must redirect to review.json and not require Confluence
+    assert cli.main(["--source", "roadmap"]) == 0
+    assert captured["review_out"] == "review.json"
+    assert captured["require_confluence"] is False
+
+
+def test_approve_allows_publish(monkeypatch, tmp_path):
+    import m365_confluence.cli as cli
+
+    captured = {}
+
+    class _Result:
+        fetched = processed = published = skipped = unchanged = slipped = new = changed = 0
+        dashboards = 0
+        titles = []
+
+    def fake_run(config, **kwargs):
+        captured.update(kwargs)
+        return _Result()
+
+    def fake_load(**kwargs):
+        captured["require_confluence"] = kwargs.get("require_confluence")
+
+        class _C:
+            filters = type(
+                "F",
+                (),
+                {
+                    "products": [],
+                    "categories": [],
+                    "major_only": False,
+                    "action_required": False,
+                    "quarter": "",
+                },
+            )()
+
+        return _C()
+
+    monkeypatch.setattr(cli, "run", fake_run)
+    monkeypatch.setattr(cli.Config, "load", staticmethod(fake_load))
+    monkeypatch.chdir(tmp_path)
+
+    assert cli.main(["--source", "roadmap", "--approve"]) == 0
+    assert captured["review_out"] is None
+    assert captured["require_confluence"] is True

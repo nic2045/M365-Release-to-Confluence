@@ -117,6 +117,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Prefix for generated Confluence page titles.",
     )
     parser.add_argument(
+        "--approve",
+        action="store_true",
+        help="Explicit human approval to write to Confluence. Without it (and without "
+        "--dry-run) the tool only writes drafts (review.json) for review.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Process items but do not write to Confluence.",
@@ -236,11 +242,18 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    # Safe by default: never write to Confluence without explicit human approval.
+    review_out = args.review_out
+    auto_review = False
+    if not args.approve and not args.dry_run and review_out is None:
+        review_out = "review.json"
+        auto_review = True
+
     try:
         config = Config.load(
             use_message_center=use_message_center,
             use_roadmap=use_roadmap,
-            require_confluence=not args.dry_run and not args.review_out,
+            require_confluence=not args.dry_run and review_out is None,
         )
         # CLI overrides config defaults; config (.env) fills in when a flag is absent.
         f = config.filters
@@ -268,13 +281,18 @@ def main(argv: list[str] | None = None) -> int:
             title_prefix=args.title_prefix,
             state_file=args.state_file,
             changelog_file=args.changelog_file,
-            review_out=args.review_out,
+            review_out=review_out,
         )
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
 
-    mode = "dry-run (nothing published)" if args.dry_run else f"published {result.published}"
+    if args.dry_run:
+        mode = "dry-run (nothing published)"
+    elif review_out is not None:
+        mode = f"drafts written to {review_out} (NOT published)"
+    else:
+        mode = f"published {result.published}"
     print(
         f"Done. fetched={result.fetched} processed={result.processed} "
         f"new={result.new} changed={result.changed} unchanged={result.unchanged} "
@@ -282,6 +300,12 @@ def main(argv: list[str] | None = None) -> int:
         f"dashboards={result.dashboards} ({mode}).",
         file=sys.stderr,
     )
+    if auto_review:
+        print(
+            "No --approve given: nothing was written to Confluence. Review the drafts "
+            f"({review_out}) in the UI or with --from-review, then publish.",
+            file=sys.stderr,
+        )
     for title in result.titles:
         print(f"  - {title}")
     return 0
