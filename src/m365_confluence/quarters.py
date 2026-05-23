@@ -57,6 +57,9 @@ def normalize_quarter(text: str) -> str:
 
 def derive_quarter(item: ChangeItem) -> str:
     """Best-effort target quarter from the item's text or its deadline date."""
+    # MS-provided release date is authoritative when present.
+    if item.release_date is not None:
+        return quarter_from_date(item.release_date)
     for text in (item.title, item.body):
         label = normalize_quarter(text)
         if label:

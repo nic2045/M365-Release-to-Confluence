@@ -49,10 +49,27 @@ class RoadmapSource:
         resp.raise_for_status()
         return [self._map(feature) for feature in _features(resp.json())]
 
+    # MS-provided availability/GA date fields to prefer for the target quarter.
+    # Confirm the exact v2 field via the OData $metadata and adjust if needed.
+    _DATE_FIELDS = (
+        "publicDisclosureAvailabilityDate",
+        "generalAvailabilityDate",
+        "availabilityStartDate",
+        "availabilityDate",
+        "releaseDate",
+        "publicPreviewDate",
+    )
+
     @staticmethod
     def _map(feature: dict) -> ChangeItem:
         feature_id = str(feature.get("id", ""))
         tags_container = feature.get("tagsContainer") or {}
+
+        release_date = None
+        for key in RoadmapSource._DATE_FIELDS:
+            release_date = _parse_dt(feature.get(key))
+            if release_date is not None:
+                break
 
         def _names(key: str) -> list[str]:
             return [t.get("tagName", "") for t in tags_container.get(key, []) if t.get("tagName")]
@@ -87,4 +104,5 @@ class RoadmapSource:
             platforms=platforms,
             created=_parse_dt(feature.get("created")),
             last_modified=_parse_dt(feature.get("modified") or feature.get("created")),
+            release_date=release_date,
         )

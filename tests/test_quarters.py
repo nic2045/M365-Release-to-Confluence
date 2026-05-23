@@ -47,3 +47,14 @@ def test_quarter_key_orders_unknown_last():
     assert quarter_key("Q1 2026") < quarter_key("Q2 2026")
     assert quarter_key("Q4 2026") < quarter_key("Q1 2027")
     assert quarter_key("") > quarter_key("Q4 2099")
+
+
+def test_release_date_is_authoritative():
+    item = ChangeItem(
+        id="1",
+        source="roadmap",
+        title="Q1 2099 in text",
+        body="",
+        release_date=datetime(2026, 8, 15, tzinfo=timezone.utc),
+    )
+    assert derive_quarter(item) == "Q3 2026"  # from release_date, not the text

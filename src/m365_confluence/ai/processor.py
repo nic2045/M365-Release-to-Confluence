@@ -13,7 +13,7 @@ from m365_confluence.ai.prompts import (
     render_storage,
 )
 from m365_confluence.models import ChangeItem, ProcessedItem
-from m365_confluence.quarters import derive_quarter
+from m365_confluence.quarters import derive_quarter, quarter_from_date
 
 log = logging.getLogger("m365_confluence")
 
@@ -42,7 +42,10 @@ def process_item(
         repaired = provider.complete(_REPAIR_SYSTEM, raw)
         processed = parse_response(repaired, item)
 
-    if not processed.target_quarter and hint:
-        processed.target_quarter = hint
+    # MS-provided release date is authoritative; otherwise fall back to the hint.
+    ms_quarter = quarter_from_date(item.release_date) if item.release_date else ""
+    final_quarter = ms_quarter or processed.target_quarter or hint
+    if final_quarter != processed.target_quarter:
+        processed.target_quarter = final_quarter
         processed.confluence_body = render_storage(processed)
     return processed

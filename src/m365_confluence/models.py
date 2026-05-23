@@ -29,6 +29,7 @@ class ChangeItem:
     platforms: list[str] = field(default_factory=list)
     created: datetime | None = None
     last_modified: datetime | None = None
+    release_date: datetime | None = None  # MS-provided availability/GA date (roadmap)
     act_by: datetime | None = None
 
     def dedupe_key(self) -> str:
