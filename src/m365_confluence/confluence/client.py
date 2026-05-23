@@ -96,3 +96,27 @@ class ConfluenceClient:
         resp = self._session.put(f"{self._api}/{page_id}", json=payload, timeout=_TIMEOUT)
         self._check(resp)
         return resp.json()
+
+    def attach_file(
+        self, page_id: str, filename: str, data: bytes, content_type: str = "application/xml"
+    ) -> dict:
+        """Create or update an attachment on a page (multipart upload)."""
+        base = f"{self._api}/{page_id}/child/attachment"
+        # multipart upload must not carry the session's JSON Content-Type
+        headers = {"X-Atlassian-Token": "no-check", "Content-Type": None}
+        files = {"file": (filename, data, content_type)}
+
+        existing = self._session.get(
+            base, params={"filename": filename}, headers={"Content-Type": None}, timeout=_TIMEOUT
+        )
+        self._check(existing)
+        results = existing.json().get("results", [])
+        if results:
+            att_id = results[0]["id"]
+            resp = self._session.post(
+                f"{base}/{att_id}/data", files=files, headers=headers, timeout=_TIMEOUT
+            )
+        else:
+            resp = self._session.post(base, files=files, headers=headers, timeout=_TIMEOUT)
+        self._check(resp)
+        return resp.json()

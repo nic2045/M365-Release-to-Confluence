@@ -39,6 +39,7 @@ dev = [
 [project.scripts]
 m365-to-confluence = "m365_confluence.cli:main"
 m365-to-confluence-ui = "m365_confluence.ui.app:main"
+m365-timeline = "m365_confluence.timeline_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
