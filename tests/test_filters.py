@@ -49,3 +49,15 @@ def test_filters_combine_with_and():
     ]
     result = apply_filters(items, major_only=True, products=["teams"])
     assert [i.id for i in result] == ["1"]
+
+
+def test_should_make_page_modes():
+    from m365_confluence.pipeline import _should_make_page
+
+    major = _item("1", tags=["MajorChange"])
+    normal = _item("2")
+    assert _should_make_page(major, "all") is True
+    assert _should_make_page(normal, "all") is True
+    assert _should_make_page(major, "none") is False
+    assert _should_make_page(major, "major") is True
+    assert _should_make_page(normal, "major") is False

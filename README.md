@@ -62,6 +62,7 @@ m365-to-confluence --source roadmap --limit 10
 | `--pick-products` | Interactively multi-select products before running (numbers, ranges, or `all`). |
 | `--category NAME` | Only items in this MC category (repeatable, e.g. `planForChange`). |
 | `--force` | Reprocess everything, ignoring the unchanged-item cache. |
+| `--item-pages {none,major,all}` | Individual page per feature: none, only major changes (default), or all. Dashboards are always created. |
 | `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |
 | `--changelog-file PATH` | Local changelog file driving the Changelog page (default `m365_changelog.json`). |
 | `--title-prefix` | Prefix for generated page titles (default `[M365] `). |
@@ -77,7 +78,10 @@ m365-to-confluence --source roadmap --limit 10
   on later runs (saves tokens). Use `--force` to override.
 - When an item's target quarter moves later than last seen, it is flagged as a **slip**
   (warning banner on the page; marked on the dashboard).
-- A **per-quarter dashboard page** is created/updated listing all features of that quarter.
+- A **per-quarter dashboard page** is created/updated listing all features of that quarter
+  (with a short description column, so it stands on its own without per-feature pages).
+- By default an **individual page is only created for major changes** (`--item-pages major`);
+  use `none` for dashboards-only or `all` for a page per feature.
 - The decision shows as a **coloured status badge** (Activate=green, Communicate=blue, Monitor=yellow, Deactivate=red); slips get a red badge.
 - A **Changelog page** records each run's new/changed/slipped counts.
 

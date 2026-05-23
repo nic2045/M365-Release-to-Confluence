@@ -6,7 +6,7 @@ from m365_confluence.reporting import (
 from m365_confluence.state import ItemState
 
 
-def _state(key, quarter, slipped=False, title="Feature"):
+def _state(key, quarter, slipped=False, title="Feature", has_page=True, summary="A summary"):
     return ItemState(
         key=key,
         content_hash="h",
@@ -16,6 +16,8 @@ def _state(key, quarter, slipped=False, title="Feature"):
         products=["Teams"],
         target_quarter=quarter,
         decision="Communicate",
+        summary=summary,
+        has_page=has_page,
         slipped=slipped,
     )
 
@@ -35,3 +37,10 @@ def test_dashboard_body_links_and_flags_slip():
     assert 'ri:content-title="[M365] Feature"' in body
     assert "verschoben" in body
     assert "Q3 2026" in body
+    assert "A summary" in body  # description column
+
+
+def test_dashboard_no_link_without_page():
+    body = build_dashboard_body("Q3 2026", [_state("a", "Q3 2026", has_page=False)])
+    assert "ri:content-title" not in body
+    assert "<strong>Feature</strong>" in body

@@ -29,12 +29,21 @@ def dashboard_title(quarter: str, prefix: str) -> str:
     return f"{prefix}Rollouts {label}"
 
 
+def _short(text: str, limit: int = 200) -> str:
+    text = (text or "").strip().replace("\n", " ")
+    if len(text) > limit:
+        text = text[: limit - 1].rstrip() + "…"
+    return _esc(text)
+
+
 def build_dashboard_body(quarter: str, items: list[ItemState]) -> str:
     ordered = sorted(items, key=lambda s: (not s.slipped, s.title.lower()))
     rows = []
     for state in ordered:
         title_cell = (
-            _page_link(state.confluence_title) if state.confluence_title else _esc(state.title)
+            _page_link(state.confluence_title)
+            if (state.has_page and state.confluence_title)
+            else f"<strong>{_esc(state.title)}</strong>"
         )
         slip = slip_badge() if state.slipped else ""
         rows.append(
@@ -44,12 +53,13 @@ def build_dashboard_body(quarter: str, items: list[ItemState]) -> str:
             f"<td>{_esc(state.status)}</td>"
             f"<td>{decision_badge(state.decision)}</td>"
             f"<td>{slip}</td>"
+            f"<td>{_short(state.summary)}</td>"
             "</tr>"
         )
 
     header = (
         "<tr><th>Feature</th><th>Produkte</th><th>Status</th>"
-        "<th>Entscheidung</th><th>Verzug</th></tr>"
+        "<th>Entscheidung</th><th>Verzug</th><th>Beschreibung</th></tr>"
     )
     count = len(ordered)
     label = quarter or UNSCHEDULED

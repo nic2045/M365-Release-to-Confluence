@@ -27,6 +27,8 @@ class ItemState:
     products: list[str] = field(default_factory=list)
     target_quarter: str = ""
     decision: str = ""
+    summary: str = ""
+    has_page: bool = False
     slipped: bool = False
     previous_quarter: str = ""
     last_seen: str = ""
@@ -62,7 +64,7 @@ class StateStore:
         existing = self._items.get(item.dedupe_key())
         return existing is not None and existing.content_hash == content_hash(item)
 
-    def record(self, item: ChangeItem, processed: ProcessedItem) -> None:
+    def record(self, item: ChangeItem, processed: ProcessedItem, *, has_page: bool = False) -> None:
         self._items[item.dedupe_key()] = ItemState(
             key=item.dedupe_key(),
             content_hash=content_hash(item),
@@ -73,6 +75,8 @@ class StateStore:
             products=list(item.products),
             target_quarter=processed.target_quarter,
             decision=processed.decision,
+            summary=processed.summary,
+            has_page=has_page,
             slipped=processed.slipped,
             previous_quarter=processed.previous_quarter,
             last_seen=datetime.now(timezone.utc).isoformat(),

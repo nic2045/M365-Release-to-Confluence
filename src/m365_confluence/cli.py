@@ -83,6 +83,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Reprocess all items, even unchanged ones (ignores the state cache).",
     )
     parser.add_argument(
+        "--item-pages",
+        choices=["none", "major", "all"],
+        default="major",
+        help="Create an individual page per feature: 'none', 'major' (only major "
+        "changes, default), or 'all'. The quarter dashboards are always created.",
+    )
+    parser.add_argument(
         "--state-file",
         default="m365_state.json",
         help="Path to the local state file used for skip/slip tracking.",
@@ -221,6 +228,7 @@ def main(argv: list[str] | None = None) -> int:
             categories=args.category if args.category is not None else (f.categories or None),
             dry_run=args.dry_run,
             force=args.force,
+            item_pages=args.item_pages,
             title_prefix=args.title_prefix,
             state_file=args.state_file,
             changelog_file=args.changelog_file,

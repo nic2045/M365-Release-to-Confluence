@@ -59,6 +59,14 @@ def collect_products(config: Config) -> list[tuple[str, int]]:
     return sorted(counter.items(), key=lambda kv: (-kv[1], kv[0].lower()))
 
 
+def _should_make_page(item: ChangeItem, mode: str) -> bool:
+    if mode == "all":
+        return True
+    if mode == "none":
+        return False
+    return "MajorChange" in item.tags  # mode == "major"
+
+
 def _detect_slip(result: ProcessedItem, previous_quarter: str) -> None:
     if not (previous_quarter and result.target_quarter):
         return
@@ -80,6 +88,7 @@ def run(
     categories: list[str] | None = None,
     dry_run: bool = False,
     force: bool = False,
+    item_pages: str = "major",
     title_prefix: str = "[M365] ",
     state_file: str = "m365_state.json",
     changelog_file: str = "m365_changelog.json",
@@ -160,7 +169,8 @@ def run(
         result.confluence_title = f"{title_prefix}{result.confluence_title}"
         processed.append(result)
 
-        if confluence is not None:
+        make_page = _should_make_page(item, item_pages)
+        if confluence is not None and make_page:
             try:
                 confluence.upsert_page(result.confluence_title, result.confluence_body)
                 published += 1
@@ -170,7 +180,7 @@ def run(
                 skipped += 1
                 continue
 
-        state.record(item, result)
+        state.record(item, result, has_page=make_page)
 
     dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run)
 
