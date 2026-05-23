@@ -31,6 +31,7 @@ class ItemState:
     has_page: bool = False
     slipped: bool = False
     previous_quarter: str = ""
+    quarter_history: list[str] = field(default_factory=list)
     last_seen: str = ""
 
 
@@ -64,7 +65,14 @@ class StateStore:
         existing = self._items.get(item.dedupe_key())
         return existing is not None and existing.content_hash == content_hash(item)
 
-    def record(self, item: ChangeItem, processed: ProcessedItem, *, has_page: bool = False) -> None:
+    def record(
+        self,
+        item: ChangeItem,
+        processed: ProcessedItem,
+        *,
+        has_page: bool = False,
+        quarter_history: list[str] | None = None,
+    ) -> None:
         self._items[item.dedupe_key()] = ItemState(
             key=item.dedupe_key(),
             content_hash=content_hash(item),
@@ -79,6 +87,7 @@ class StateStore:
             has_page=has_page,
             slipped=processed.slipped,
             previous_quarter=processed.previous_quarter,
+            quarter_history=list(quarter_history or []),
             last_seen=datetime.now(timezone.utc).isoformat(),
         )
 

@@ -16,7 +16,7 @@ from m365_confluence.confluence import ConfluenceClient
 from m365_confluence.filters import apply_filters
 from m365_confluence.models import ChangeItem, ProcessedItem
 from m365_confluence.quarters import derive_quarter, quarter_key
-from m365_confluence.reporting import build_dashboard_body, dashboard_title, group_by_quarter
+from m365_confluence.reporting import dashboard_title, quarter_dashboards
 from m365_confluence.sources import MessageCenterSource, RoadmapSource, aggregate
 from m365_confluence.state import StateStore
 
@@ -169,6 +169,10 @@ def run(
         result.confluence_title = f"{title_prefix}{result.confluence_title}"
         processed.append(result)
 
+        history = list(previous.quarter_history) if previous else []
+        if result.slipped and result.previous_quarter and result.previous_quarter not in history:
+            history.append(result.previous_quarter)
+
         make_page = _should_make_page(item, item_pages)
         if confluence is not None and make_page:
             try:
@@ -180,7 +184,7 @@ def run(
                 skipped += 1
                 continue
 
-        state.record(item, result, has_page=make_page)
+        state.record(item, result, has_page=make_page, quarter_history=history)
 
     dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run)
 
@@ -244,18 +248,16 @@ def _update_changelog(
 
 
 def _publish_dashboards(state, confluence, title_prefix: str, dry_run: bool) -> int:
-    groups = group_by_quarter(state.all_items())
     count = 0
-    for quarter_label, items in groups.items():
+    for quarter_label, body in quarter_dashboards(state.all_items()):
         title = dashboard_title(quarter_label, title_prefix)
-        body = build_dashboard_body(quarter_label, items)
         if dry_run or confluence is None:
-            log.info("Dashboard (dry-run): %s (%d items)", title, len(items))
+            log.info("Dashboard (dry-run): %s", title)
             count += 1
             continue
         try:
             confluence.upsert_page(title, body)
-            log.info("Dashboard published: %s (%d items)", title, len(items))
+            log.info("Dashboard published: %s", title)
             count += 1
         except Exception:
             log.exception("Dashboard write failed: %s", title)

@@ -2,11 +2,21 @@ from m365_confluence.reporting import (
     build_dashboard_body,
     dashboard_title,
     group_by_quarter,
+    quarter_dashboards,
 )
 from m365_confluence.state import ItemState
 
 
-def _state(key, quarter, slipped=False, title="Feature", has_page=True, summary="A summary"):
+def _state(
+    key,
+    quarter,
+    slipped=False,
+    title="Feature",
+    has_page=True,
+    summary="A summary",
+    previous_quarter="",
+    quarter_history=None,
+):
     return ItemState(
         key=key,
         content_hash="h",
@@ -19,6 +29,8 @@ def _state(key, quarter, slipped=False, title="Feature", has_page=True, summary=
         summary=summary,
         has_page=has_page,
         slipped=slipped,
+        previous_quarter=previous_quarter,
+        quarter_history=quarter_history or [],
     )
 
 
@@ -44,3 +56,16 @@ def test_dashboard_no_link_without_page():
     body = build_dashboard_body("Q3 2026", [_state("a", "Q3 2026", has_page=False)])
     assert "ri:content-title" not in body
     assert "<strong>Feature</strong>" in body
+
+
+def test_quarter_dashboards_show_moved_out_in_old_quarter():
+    moved = _state(
+        "a", "Q4 2026", slipped=True, previous_quarter="Q3 2026", quarter_history=["Q3 2026"]
+    )
+    dashboards = dict(quarter_dashboards([moved]))
+    # Old quarter exists and mentions the move
+    assert "Q3 2026" in dashboards
+    assert "Aus diesem Quartal verschoben" in dashboards["Q3 2026"]
+    assert "verschoben nach Q4 2026" in dashboards["Q3 2026"]
+    # New quarter shows the item with "aus Q3 2026"
+    assert "verschoben aus Q3 2026" in dashboards["Q4 2026"]
