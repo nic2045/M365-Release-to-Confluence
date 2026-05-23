@@ -71,6 +71,8 @@ m365-to-confluence --source roadmap --limit 10 --approve
 | `--worldwide-only` / `--no-worldwide-only` | Roadmap: keep only the Worldwide cloud instance. **On by default**; opt out with `--no-worldwide-only`. |
 | `--new-rollouts-only` / `--no-new-rollouts-only` | Roadmap: only items that newly reached rollout/live (Rolling out / Launched / Generally Available) since the last run. **On by default**. |
 | `--force` | Reprocess everything, ignoring the unchanged-item cache. |
+| `--confirm-over N` | Ask for confirmation before sending more than N items to the LLM (default 15). |
+| `-y`, `--yes` | Skip the confirmation prompt (non-interactive/CI). |
 | `--item-pages {none,major,all}` | Individual page per feature: none, only major changes (default), or all. Dashboards are always created. |
 | `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |
 | `--changelog-file PATH` | Local changelog file driving the Changelog page (default `m365_changelog.json`). |

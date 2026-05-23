@@ -38,6 +38,16 @@ def test_approval_gate_redirects_to_review(monkeypatch, tmp_path):
         captured["require_confluence"] = kwargs.get("require_confluence")
 
         class _C:
+            ai = type(
+                "AI",
+                (),
+                {
+                    "provider": "anthropic",
+                    "anthropic_model": "m",
+                    "azure_deployment": "",
+                    "local_model": "",
+                },
+            )()
             filters = type(
                 "F",
                 (),
@@ -83,6 +93,16 @@ def test_approve_allows_publish(monkeypatch, tmp_path):
         captured["require_confluence"] = kwargs.get("require_confluence")
 
         class _C:
+            ai = type(
+                "AI",
+                (),
+                {
+                    "provider": "anthropic",
+                    "anthropic_model": "m",
+                    "azure_deployment": "",
+                    "local_model": "",
+                },
+            )()
             filters = type(
                 "F",
                 (),

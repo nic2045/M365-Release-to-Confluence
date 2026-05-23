@@ -102,6 +102,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Reprocess all items, even unchanged ones (ignores the state cache).",
     )
     parser.add_argument(
+        "--confirm-over",
+        type=int,
+        default=15,
+        help="Ask for confirmation before sending more than N items to the LLM "
+        "(default 15; saves tokens during dev). Use --yes to skip.",
+    )
+    parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Skip the confirmation prompt (for non-interactive/CI runs).",
+    )
+    parser.add_argument(
         "--item-pages",
         choices=["none", "major", "all"],
         default="major",
@@ -257,6 +270,28 @@ def _check_confluence() -> int:
     return 0
 
 
+def _make_confirm(config):
+    ai = config.ai
+    model = {
+        "anthropic": ai.anthropic_model,
+        "azure_openai": ai.azure_deployment,
+        "local": ai.local_model,
+    }.get(ai.provider, "?")
+
+    def _confirm(count: int, est_tokens: int) -> bool:
+        sys.stderr.write(
+            f"\nAbout to send {count} item(s) (~{est_tokens} input tokens) "
+            f"to {ai.provider}/{model}.\nContinue? [y/N] "
+        )
+        sys.stderr.flush()
+        try:
+            return input().strip().lower() in {"y", "yes", "j", "ja"}
+        except EOFError:
+            return False
+
+    return _confirm
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     _configure_logging(verbose=args.verbose, debug_http=args.debug_http)
@@ -357,6 +392,8 @@ def main(argv: list[str] | None = None) -> int:
             state_file=args.state_file,
             changelog_file=args.changelog_file,
             review_out=review_out,
+            confirm_over=args.confirm_over,
+            confirm=None if args.yes else _make_confirm(config),
         )
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)

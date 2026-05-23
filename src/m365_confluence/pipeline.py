@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -129,6 +130,8 @@ def run(
     state_file: str = "m365_state.json",
     changelog_file: str = "m365_changelog.json",
     review_out: str | None = None,
+    confirm_over: int | None = None,
+    confirm: Callable[[int, int], bool] | None = None,
 ) -> RunResult:
     since = None
     if since_days is not None:
@@ -162,21 +165,47 @@ def run(
     slipped = 0
     new_count = 0
     changed_count = 0
-    total = len(items)
-    for index, item in enumerate(items, start=1):
-        key = item.dedupe_key()
-        previous = state.get(key)
+
+    # Pre-pass: determine which items will actually hit the LLM.
+    candidates: list[tuple[ChangeItem, object]] = []
+    for item in items:
+        previous = state.get(item.dedupe_key())
         if not force and state.is_unchanged(item):
-            log.info("[%d/%d] Unchanged, skipping %s", index, total, key)
-            state.touch(key)
+            state.touch(item.dedupe_key())
             unchanged += 1
             continue
-
         if new_rollouts_only and not _output_relevant(item, previous):
-            log.info("[%d/%d] Not a new rollout/live item, skipping %s", index, total, key)
             not_relevant += 1
             continue
+        candidates.append((item, previous))
 
+    # Token/cost guard: confirm before sending a large batch to the LLM.
+    if (
+        candidates
+        and confirm is not None
+        and confirm_over is not None
+        and len(candidates) > confirm_over
+    ):
+        est_tokens = sum(len(i.body) for i, _ in candidates) // 4
+        if not confirm(len(candidates), est_tokens):
+            log.warning("Aborted before any LLM call (%d item(s) pending).", len(candidates))
+            return RunResult(
+                fetched=len(items),
+                processed=0,
+                published=0,
+                skipped=0,
+                unchanged=unchanged,
+                slipped=0,
+                new=0,
+                changed=0,
+                dashboards=0,
+                not_relevant=not_relevant,
+                titles=[],
+            )
+
+    total = len(candidates)
+    for index, (item, previous) in enumerate(candidates, start=1):
+        key = item.dedupe_key()
         log.info("[%d/%d] Processing %s ...", index, total, key)
         started = time.monotonic()
         try:

@@ -119,3 +119,41 @@ def test_fatal_provider_error_detection():
     assert _is_fatal_provider_error(Exception("Your credit balance is too low")) is True
     assert _is_fatal_provider_error(Exception("authentication_error: bad key")) is True
     assert _is_fatal_provider_error(Exception("Connection timed out")) is False
+
+
+def test_run_confirm_guard_aborts(monkeypatch, tmp_path):
+    # When confirm() returns False above the threshold, no LLM call happens.
+    import m365_confluence.pipeline as pipeline
+    from m365_confluence.config import AIConfig, Config, FilterConfig
+    from m365_confluence.models import ChangeItem
+
+    items = [ChangeItem(id=str(n), source="message_center", title="t", body="b") for n in range(5)]
+    monkeypatch.setattr(pipeline, "collect", lambda config: [items])
+    monkeypatch.setattr(pipeline, "build_provider", lambda ai: object())
+
+    called = {"n": 0}
+
+    def boom(*a, **k):
+        called["n"] += 1
+        raise AssertionError("LLM should not be called")
+
+    monkeypatch.setattr(pipeline, "process_item", boom)
+
+    cfg = Config(
+        graph=None,
+        roadmap=None,
+        ai=AIConfig(provider="anthropic"),
+        confluence=None,
+        filters=FilterConfig(),
+    )
+    result = pipeline.run(
+        cfg,
+        dry_run=True,
+        new_rollouts_only=False,
+        confirm_over=2,
+        confirm=lambda count, est: False,
+        state_file=str(tmp_path / "s.json"),
+        changelog_file=str(tmp_path / "c.json"),
+    )
+    assert result.processed == 0
+    assert called["n"] == 0
