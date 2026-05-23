@@ -65,6 +65,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "(no LLM, no Confluence). Use it to pick values for --product.",
     )
     parser.add_argument(
+        "--pick-products",
+        action="store_true",
+        help="Interactively choose products (multi-select) before running.",
+    )
+    parser.add_argument(
         "--category",
         action="append",
         default=None,
@@ -131,6 +136,40 @@ def _configure_logging(*, verbose: bool, debug_http: bool) -> None:
         logging.getLogger(noisy).setLevel(http_level)
 
 
+def _parse_selection(raw: str, count: int) -> list[int]:
+    """Parse '1,3,5', ranges '1-4', or 'all' into 0-based indices."""
+    text = raw.strip().lower()
+    if text in {"all", "*"}:
+        return list(range(count))
+    chosen: set[int] = set()
+    for token in text.replace(",", " ").split():
+        if "-" in token:
+            start, _, end = token.partition("-")
+            if start.isdigit() and end.isdigit():
+                for n in range(int(start), int(end) + 1):
+                    if 1 <= n <= count:
+                        chosen.add(n - 1)
+        elif token.isdigit() and 1 <= int(token) <= count:
+            chosen.add(int(token) - 1)
+    return sorted(chosen)
+
+
+def _interactive_pick(products: list[tuple[str, int]]) -> list[str]:
+    if not products:
+        print("No products found in the selected source(s).", file=sys.stderr)
+        return []
+    print("Select products (multi-select):", file=sys.stderr)
+    for i, (name, cnt) in enumerate(products, start=1):
+        print(f"  [{i:2d}] {name}  ({cnt})", file=sys.stderr)
+    print("Enter numbers (e.g. 1,3,5 or 1-4), 'all', or blank to cancel:", file=sys.stderr)
+    try:
+        raw = input("> ")
+    except EOFError:
+        raw = ""
+    indices = _parse_selection(raw, len(products))
+    return [products[i][0] for i in indices]
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     _configure_logging(verbose=args.verbose, debug_http=args.debug_http)
@@ -158,9 +197,19 @@ def main(argv: list[str] | None = None) -> int:
         config = Config.load(
             use_message_center=use_message_center,
             use_roadmap=use_roadmap,
+            require_confluence=not args.dry_run,
         )
         # CLI overrides config defaults; config (.env) fills in when a flag is absent.
         f = config.filters
+        if args.pick_products:
+            products = _interactive_pick(collect_products(config))
+            if not products:
+                print("No products selected; aborting.", file=sys.stderr)
+                return 0
+        elif args.product is not None:
+            products = args.product
+        else:
+            products = f.products or None
         result = run(
             config,
             since_days=args.since_days,
@@ -168,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
             quarter=args.quarter if args.quarter is not None else (f.quarter or None),
             major_only=args.major_only or f.major_only,
             action_required=args.action_required or f.action_required,
-            products=args.product if args.product is not None else (f.products or None),
+            products=products,
             categories=args.category if args.category is not None else (f.categories or None),
             dry_run=args.dry_run,
             force=args.force,

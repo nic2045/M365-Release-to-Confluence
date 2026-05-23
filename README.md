@@ -59,6 +59,7 @@ m365-to-confluence --source roadmap --limit 10
 | `--action-required` | Only items with an action-required deadline. |
 | `--product NAME` | Only items touching this product (repeatable, substring, e.g. `--product Teams`). |
 | `--list-products` | List products found in the source(s) with counts, then exit (no LLM/Confluence). |
+| `--pick-products` | Interactively multi-select products before running (numbers, ranges, or `all`). |
 | `--category NAME` | Only items in this MC category (repeatable, e.g. `planForChange`). |
 | `--force` | Reprocess everything, ignoring the unchanged-item cache. |
 | `--state-file PATH` | Local state file for skip/slip tracking (default `m365_state.json`). |
