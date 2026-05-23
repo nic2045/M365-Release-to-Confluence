@@ -58,6 +58,7 @@ INDEX_HTML = """<!doctype html>
  .filters{max-width:980px;margin:6px auto 0;padding:10px 24px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
  .fgroup{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
  .flabel{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+ .flabel.sub{text-transform:none;color:#00695c;margin-left:8px}
  .fchk{font-size:12px;color:var(--ink);display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:3px 10px;cursor:pointer}
  .row{display:flex;gap:16px;flex-wrap:wrap}
  .row>div{flex:1;min-width:200px}
@@ -146,7 +147,14 @@ function renderFilters(){
   const qhtml=qs.map(q=>chk(activeQ,q,"toggleQ")).join('');
   const ahtml=AREAS.map(a=>chk(activeArea,a,"toggleA")).join('');
   const shtml=svcs.length?('<span class="flabel">Service (1):</span>'+svcs.map(s=>chk(activeSvc,s,"toggleS")).join('')):'';
-  const phtml=prs.length?('<span class="flabel">Produkt (2):</span>'+prs.map(p=>chk(activeProd,p,"toggleP")).join('')):'';
+  // Level 2 grouped under their service (only for active services).
+  const m=prodServiceMap();
+  let pgroups='';
+  svcs.filter(s=>activeSvc.has(s)).forEach(s=>{
+    const ps=prs.filter(p=>(m[p]||'Allgemein / M365 Admin')===s);
+    if(ps.length)pgroups+=`<span class="flabel sub">${esc(s)}:</span>`+ps.map(p=>chk(activeProd,p,"toggleP")).join('');
+  });
+  const phtml=pgroups?('<span class="flabel">Produkt (2):</span>'+pgroups):'';
   const chtml=chs.length?('<span class="flabel">Channel:</span>'+chs.map(c=>chk(activeChan,c,"toggleC")).join('')):'';
   document.getElementById('filters').innerHTML=
     `<div class="fgroup"><span class="flabel">Quartal:</span>${qhtml}</div>`
