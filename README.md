@@ -93,6 +93,26 @@ m365-to-confluence --source roadmap --limit 10
 - The system prompt is sent with **prompt caching** (Anthropic) so the standards block is cheap to reuse.
 - Use `--since-days`, `--limit`, a cheaper model (`ANTHROPIC_MODEL=claude-haiku-4-5`) or `AI_PROVIDER=local`.
 
+## Review & edit before publishing
+
+A human-in-the-loop workflow: generate drafts, edit them (CLI or web UI), then publish
+without re-running the LLM.
+
+```bash
+# 1. Generate editable drafts (no Confluence write, no creds needed)
+m365-to-confluence --source roadmap --review-out review.json
+
+# 2a. Edit review.json by hand, OR
+# 2b. Launch the web UI to review/edit (needs the 'ui' extra)
+m365-to-confluence-ui --review-file review.json   # http://127.0.0.1:8765
+
+# 3. Publish the edited drafts (no LLM call)
+m365-to-confluence --from-review review.json
+```
+
+The UI lets you edit title, target quarter, decision, CAB flag/recommendation, summary,
+impact and recommended action per item, then **Save** and **Publish** (with a dry-run toggle).
+
 ## Configuration
 
 All configuration is via environment variables (see `.env.example`):
