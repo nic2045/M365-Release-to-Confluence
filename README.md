@@ -103,6 +103,15 @@ All configuration is via environment variables (see `.env.example`):
 ## Development
 
 ```bash
+make dev        # editable install with all extras
+make check      # lint + format check + tests (what CI runs)
+make dry-run    # preview a run without writing to Confluence
+make help       # list all targets
+```
+
+Equivalent without make:
+
+```bash
 ruff check .
 ruff format --check .
 python -m pytest
