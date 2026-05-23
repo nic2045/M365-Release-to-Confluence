@@ -28,6 +28,23 @@ def test_index_serves_html(tmp_path):
     assert "M365 Review" in r.text
 
 
+def test_index_renders_shared_module_shell(tmp_path):
+    """Standalone view uses the design-system shell + injected api base."""
+    client = TestClient(create_app(str(tmp_path / "review.json")))
+    body = client.get("/").text
+    assert 'class="module-shell"' in body
+    assert "/m365-assets/module/m365.js" in body
+    assert 'apiBase: "/api"' in body
+
+
+def test_module_bundle_assets_served(tmp_path):
+    client = TestClient(create_app(str(tmp_path / "review.json")))
+    css = client.get("/m365-assets/design-system/tokens.css")
+    assert css.status_code == 200 and "--accent" in css.text
+    js = client.get("/m365-assets/module/m365.js")
+    assert js.status_code == 200 and "window.M365" in js.text
+
+
 def test_drafts_empty_then_save_then_read(tmp_path):
     path = tmp_path / "review.json"
     client = TestClient(create_app(str(path)))
