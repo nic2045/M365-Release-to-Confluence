@@ -89,3 +89,20 @@ def test_dashboard_no_product_bucket():
     s.products = []
     body = build_dashboard_body("Q3 2026", [s])
     assert "<h3>Ohne Produkt</h3>" in body
+
+
+def test_feature_appears_under_each_product():
+    s = _state("a", "Q3 2026", title="Multi")
+    s.products = ["Teams", "Exchange"]
+    body = build_dashboard_body("Q3 2026", [s])
+    assert "<h3>Teams</h3>" in body
+    assert "<h3>Exchange</h3>" in body
+
+
+def test_cab_badge_in_dashboard():
+    s = _state("a", "Q3 2026")
+    s.cab_required = True
+    s.cab_recommendation = "Bitte CAB prüfen"
+    body = build_dashboard_body("Q3 2026", [s])
+    assert "CAB: Ja" in body
+    assert "Bitte CAB" in body

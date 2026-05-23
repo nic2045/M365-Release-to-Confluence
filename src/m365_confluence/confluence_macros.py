@@ -32,3 +32,7 @@ def decision_badge(decision: str) -> str:
 
 def slip_badge(label: str = "verschoben") -> str:
     return status_macro("Red", label)
+
+
+def cab_badge(required: bool) -> str:
+    return status_macro("Red", "CAB: Ja") if required else status_macro("Green", "CAB: Nein")

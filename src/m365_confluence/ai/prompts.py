@@ -10,7 +10,7 @@ from __future__ import annotations
 import html
 import json
 
-from m365_confluence.confluence_macros import decision_badge
+from m365_confluence.confluence_macros import cab_badge, decision_badge
 from m365_confluence.models import ChangeItem, ProcessedItem
 
 STANDARDS = """\
@@ -45,8 +45,8 @@ with exactly these keys:
   "target_quarter":     string  - "Qn YYYY" or "" if unknown
   "decision":           string  - one of: "Activate", "Deactivate", "Communicate", "Monitor"
   "decision_rationale": string  - one sentence explaining the decision
-  "cab_recommendation": string  - one sentence for the Change Advisory Board (CAB): whether
-                                   it needs CAB review and what to advise; "" if not relevant
+  "cab_required":       boolean - true if the Change Advisory Board (CAB) should review this
+  "cab_recommendation": string  - one sentence for the CAB: what to advise; "" if not relevant
 
 JSON rules (strict):
 - Output must parse as JSON (RFC 8259). Escape every double quote inside a
@@ -58,7 +58,7 @@ Example shape (values are illustrative only):
 {{"title":"...","summary":"...","impact":"...","audience":"Admins",\
 "recommended_action":"...","action_items":["...","..."],\
 "target_quarter":"Q3 2026","decision":"Communicate","decision_rationale":"...",\
-"cab_recommendation":"..."}}
+"cab_required":false,"cab_recommendation":"..."}}
 """
 
 _USER_TEMPLATE = """\
@@ -118,6 +118,12 @@ def _normalize_decision(value: str) -> str:
     return "Monitor"
 
 
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"true", "yes", "1", "ja"}
+
+
 def parse_response(raw: str, item: ChangeItem) -> ProcessedItem:
     data = _load_json(raw)
     title = (data.get("title") or item.title).strip()
@@ -132,6 +138,7 @@ def parse_response(raw: str, item: ChangeItem) -> ProcessedItem:
         target_quarter=str(data.get("target_quarter", "")).strip(),
         decision=_normalize_decision(str(data.get("decision", ""))),
         decision_rationale=str(data.get("decision_rationale", "")).strip(),
+        cab_required=_as_bool(data.get("cab_required")),
         cab_recommendation=str(data.get("cab_recommendation", "")).strip(),
         confluence_title=title,
     )
@@ -186,9 +193,8 @@ def render_storage(item: ProcessedItem) -> str:
         rationale = f" {esc(item.decision_rationale)}" if item.decision_rationale else ""
         decision = f"<h2>Decision</h2><p>{decision_badge(item.decision)}{rationale}</p>"
 
-    cab = ""
-    if item.cab_recommendation:
-        cab = f"<h2>CAB-Empfehlung</h2><p>{esc(item.cab_recommendation)}</p>"
+    rec = f" {esc(item.cab_recommendation)}" if item.cab_recommendation else ""
+    cab = f"<h2>CAB-Empfehlung</h2><p>{cab_badge(item.cab_required)}{rec}</p>"
 
     actions = ""
     if item.action_items:

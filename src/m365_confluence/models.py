@@ -39,6 +39,7 @@ class ProcessedItem:
     target_quarter: str = ""  # e.g. "Q3 2026"; "" if unknown
     decision: str = ""  # Activate | Deactivate | Communicate | Monitor
     decision_rationale: str = ""
+    cab_required: bool = False  # should the Change Advisory Board review this?
     cab_recommendation: str = ""  # recommendation for the Change Advisory Board
     slipped: bool = False  # target quarter moved later than previously seen
     previous_quarter: str = ""  # the earlier target quarter, when slipped

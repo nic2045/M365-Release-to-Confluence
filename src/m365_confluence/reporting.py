@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import html
 
-from m365_confluence.confluence_macros import decision_badge, slip_badge
+from m365_confluence.confluence_macros import cab_badge, decision_badge, slip_badge
 from m365_confluence.quarters import UNSCHEDULED, quarter_key
 from m365_confluence.state import ItemState
 
@@ -50,8 +50,8 @@ _HEADER = (
 )
 
 
-def _primary_product(state: ItemState) -> str:
-    return state.products[0] if state.products else NO_PRODUCT
+def _products_of(state: ItemState) -> list[str]:
+    return state.products or [NO_PRODUCT]
 
 
 def _feature_row(state: ItemState) -> str:
@@ -61,12 +61,14 @@ def _feature_row(state: ItemState) -> str:
         slip = slip_badge()
     else:
         slip = ""
+    cab_rec = f" {_short(state.cab_recommendation, 140)}" if state.cab_recommendation else ""
+    cab_cell = f"{cab_badge(state.cab_required)}{cab_rec}"
     return (
         "<tr>"
         f"<td>{_title_cell(state)}</td>"
         f"<td>{_esc(state.status)}</td>"
         f"<td>{decision_badge(state.decision)}</td>"
-        f"<td>{_short(state.cab_recommendation, 160)}</td>"
+        f"<td>{cab_cell}</td>"
         f"<td>{slip}</td>"
         f"<td>{_short(state.summary)}</td>"
         "</tr>"
@@ -80,7 +82,8 @@ def build_dashboard_body(
 ) -> str:
     by_product: dict[str, list[ItemState]] = {}
     for state in items:
-        by_product.setdefault(_primary_product(state), []).append(state)
+        for product in _products_of(state):
+            by_product.setdefault(product, []).append(state)
 
     label = quarter or UNSCHEDULED
     body = (
