@@ -45,6 +45,35 @@ def test_roundtrip_and_unchanged(tmp_path):
     assert reloaded.get(item.dedupe_key()).target_quarter == "Q3 2026"
 
 
+def test_injected_backend_roundtrip():
+    """A custom (e.g. DB-backed) backend is used instead of a file."""
+    store: dict = {}
+
+    class MemBackend:
+        def read(self):
+            return dict(store)
+
+        def write(self, payload):
+            store.clear()
+            store.update(payload)
+
+    s = StateStore(backend=MemBackend())
+    item = _item()
+    s.record(item, _processed(item, "Q3 2026"))
+    s.save()
+    assert "items" in store and item.dedupe_key() in store["items"]
+
+    reloaded = StateStore(backend=MemBackend()).load()
+    assert reloaded.is_unchanged(item) is True
+
+
+def test_requires_path_or_backend():
+    import pytest
+
+    with pytest.raises(ValueError):
+        StateStore()
+
+
 def test_all_items(tmp_path):
     store = StateStore(tmp_path / "s.json")
     item = _item()
