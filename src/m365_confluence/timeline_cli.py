@@ -18,6 +18,17 @@ from m365_confluence.state import StateStore
 _DIAGRAM_NAME = "m365-roadmap-timeline"
 
 
+def _attachment_version(resp: object) -> int | None:
+    obj = resp
+    if isinstance(obj, dict) and obj.get("results"):
+        obj = obj["results"][0]
+    if isinstance(obj, dict):
+        v = obj.get("version", {})
+        if isinstance(v, dict):
+            return v.get("number")
+    return None
+
+
 def _publish(xml: str, title_prefix: str) -> str:
     from m365_confluence.confluence.client import ConfluenceClient
 
@@ -28,11 +39,15 @@ def _publish(xml: str, title_prefix: str) -> str:
 
     # 1) Create/find the page to learn its id, 2) attach the diagram under the
     # exact name the draw.io macro resolves (== diagramName, no extension), then
-    # 3) write the macro body referencing that page via contentId.
+    # 3) write the macro body referencing that page via contentId + the current
+    #    attachment revision (so re-publishes show the latest diagram, not a
+    #    cached older version).
     page = client.upsert_page(title, "<p>Diagramm wird erzeugt…</p>")
     page_id = str(page.get("id", ""))
-    client.attach_file(page_id, _DIAGRAM_NAME, data)  # for the macro
+    att = client.attach_file(page_id, _DIAGRAM_NAME, data)  # for the macro
     client.attach_file(page_id, f"{_DIAGRAM_NAME}.drawio", data)  # downloadable copy
+    revision = _attachment_version(att)
+    rev_param = f'<ac:parameter ac:name="revision">{revision}</ac:parameter>' if revision else ""
 
     body = (
         "<p>Automatisch generiert – nicht manuell bearbeiten.</p>"
@@ -40,7 +55,7 @@ def _publish(xml: str, title_prefix: str) -> str:
         f'<ac:parameter ac:name="diagramName">{_DIAGRAM_NAME}</ac:parameter>'
         f'<ac:parameter ac:name="contentId">{page_id}</ac:parameter>'
         f'<ac:parameter ac:name="baseUrl">{config.confluence.base_url}</ac:parameter>'
-        '<ac:parameter ac:name="revision">1</ac:parameter>'
+        f"{rev_param}"
         "</ac:structured-macro>"
         "<p>Download: "
         f'<ac:link><ri:attachment ri:filename="{_DIAGRAM_NAME}.drawio"/></ac:link></p>'
