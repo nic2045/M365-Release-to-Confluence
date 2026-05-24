@@ -47,9 +47,7 @@ def _publish(xml: str, title_prefix: str) -> str:
     att = client.attach_file(page_id, _DIAGRAM_NAME, data)  # for the macro
     client.attach_file(page_id, f"{_DIAGRAM_NAME}.drawio", data)  # downloadable copy
     revision = _attachment_version(att)
-    rev_param = (
-        f'<ac:parameter ac:name="revision">{revision}</ac:parameter>' if revision else ""
-    )
+    rev_param = f'<ac:parameter ac:name="revision">{revision}</ac:parameter>' if revision else ""
 
     body = (
         "<p>Automatisch generiert – nicht manuell bearbeiten.</p>"
