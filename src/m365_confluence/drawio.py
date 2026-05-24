@@ -157,7 +157,8 @@ def build_timeline(states: list[ItemState], axis: str = "quarter", rows: str = "
                 )
                 title = s.title if len(s.title) <= 70 else s.title[:69] + "…"
                 slip = " ⚠" if s.slipped else ""
-                value = f"{_esc(title)}{slip}&#10;<i>{_esc(s.decision)}</i>"
+                # Label markup must be escaped inside the XML attribute value.
+                value = f"{_esc(title)}{slip}&#10;&lt;i&gt;{_esc(s.decision)}&lt;/i&gt;"
                 bx = x + _GAP
                 by = y + _GAP + k * (_ITEM_H + _GAP)
                 cells.append(
