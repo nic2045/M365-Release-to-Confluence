@@ -31,6 +31,15 @@ class DraftsBackend(Protocol):
     def write(self, drafts: list[dict]) -> None: ...
 
 
+@runtime_checkable
+class CatalogBackend(Protocol):
+    """Raw persistence for the fetch-once catalog blob (``{"items": {...}}``)."""
+
+    def read(self) -> dict: ...
+
+    def write(self, payload: dict) -> None: ...
+
+
 class JsonFileStateBackend:
     """Default state backend: a single JSON file on disk."""
 
@@ -65,3 +74,19 @@ class JsonFileDraftsBackend:
             json.dumps({"items": drafts}, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+
+
+class JsonFileCatalogBackend:
+    """Default catalog backend: a single JSON file on disk."""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+
+    def read(self) -> dict:
+        if self.path.exists():
+            return json.loads(self.path.read_text(encoding="utf-8"))
+        return {}
+
+    def write(self, payload: dict) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")

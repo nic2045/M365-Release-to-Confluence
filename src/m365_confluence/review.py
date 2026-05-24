@@ -3,6 +3,10 @@
 This enables the "draft -> edit -> publish" workflow: a run can write
 ``review.json`` instead of publishing; after editing (CLI or the web UI), the
 drafts are published to Confluence without calling the LLM again.
+
+The ``source_dict``/``edit_dict`` (and their inverses) are the shared
+serialisation contract reused by the catalog (``catalog.py``): a catalog entry
+is a draft plus sync metadata, so the same converters round-trip both.
 """
 
 from __future__ import annotations
@@ -12,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 from m365_confluence.models import ChangeItem, ProcessedItem
+from m365_confluence.quarters import derive_quarter
 from m365_confluence.services import service_for, services_for
 
 
@@ -33,56 +38,56 @@ def _change_type(item: ChangeItem) -> str:
     return "Neu"
 
 
-def draft_from(item: ChangeItem, processed: ProcessedItem, make_page: bool) -> dict:
+def source_dict(item: ChangeItem) -> dict:
+    """Serialise the raw source item plus deterministic labels (no LLM)."""
     return {
-        "key": item.dedupe_key(),
-        "source": {
-            "id": item.id,
-            "source": item.source,
-            "title": item.title,
-            "body": item.body,
-            "url": item.url,
-            "category": item.category,
-            "severity": item.severity,
-            "status": item.status,
-            "products": list(item.products),
-            "services": services_for(item.products),
-            "product_services": {p: service_for(p) for p in item.products},
-            "tags": list(item.tags),
-            "release_phases": list(item.release_phases),
-            "cloud_instances": list(item.cloud_instances),
-            "change_type": _change_type(item),
-            "created": _dt(item.created),
-            "last_modified": _dt(item.last_modified),
-            "act_by": _dt(item.act_by),
-        },
-        "edit": {
-            "confluence_title": processed.confluence_title,
-            "summary": processed.summary,
-            "impact": processed.impact,
-            "audience": processed.audience,
-            "recommended_action": processed.recommended_action,
-            "action_items": list(processed.action_items),
-            "target_quarter": processed.target_quarter,
-            "decision": processed.decision,
-            "decision_rationale": processed.decision_rationale,
-            "cab_required": processed.cab_required,
-            "cab_recommendation": processed.cab_recommendation,
-            "areas": list(processed.areas),
-            "data_protection_impact": processed.data_protection_impact,
-            "it_landscape_impact": processed.it_landscape_impact,
-            "config_change_required": processed.config_change_required,
-            "kbv_change_required": processed.kbv_change_required,
-        },
-        "make_page": make_page,
-        "ignored": False,
+        "id": item.id,
+        "source": item.source,
+        "title": item.title,
+        "body": item.body,
+        "url": item.url,
+        "category": item.category,
+        "severity": item.severity,
+        "status": item.status,
+        "products": list(item.products),
+        "services": services_for(item.products),
+        "product_services": {p: service_for(p) for p in item.products},
+        "tags": list(item.tags),
+        "release_phases": list(item.release_phases),
+        "cloud_instances": list(item.cloud_instances),
+        "change_type": _change_type(item),
+        "target_quarter": derive_quarter(item),
+        "created": _dt(item.created),
+        "last_modified": _dt(item.last_modified),
+        "release_date": _dt(item.release_date),
+        "act_by": _dt(item.act_by),
     }
 
 
-def draft_to(draft: dict) -> tuple[ChangeItem, ProcessedItem, bool]:
-    s = draft["source"]
-    e = draft["edit"]
-    item = ChangeItem(
+def edit_dict(processed: ProcessedItem) -> dict:
+    """Serialise the LLM-produced, human-editable fields."""
+    return {
+        "confluence_title": processed.confluence_title,
+        "summary": processed.summary,
+        "impact": processed.impact,
+        "audience": processed.audience,
+        "recommended_action": processed.recommended_action,
+        "action_items": list(processed.action_items),
+        "target_quarter": processed.target_quarter,
+        "decision": processed.decision,
+        "decision_rationale": processed.decision_rationale,
+        "cab_required": processed.cab_required,
+        "cab_recommendation": processed.cab_recommendation,
+        "areas": list(processed.areas),
+        "data_protection_impact": processed.data_protection_impact,
+        "it_landscape_impact": processed.it_landscape_impact,
+        "config_change_required": processed.config_change_required,
+        "kbv_change_required": processed.kbv_change_required,
+    }
+
+
+def item_from_source(s: dict) -> ChangeItem:
+    return ChangeItem(
         id=s["id"],
         source=s["source"],
         title=s.get("title", ""),
@@ -97,9 +102,13 @@ def draft_to(draft: dict) -> tuple[ChangeItem, ProcessedItem, bool]:
         cloud_instances=list(s.get("cloud_instances") or []),
         created=_pdt(s.get("created")),
         last_modified=_pdt(s.get("last_modified")),
+        release_date=_pdt(s.get("release_date")),
         act_by=_pdt(s.get("act_by")),
     )
-    processed = ProcessedItem(
+
+
+def processed_from_edit(item: ChangeItem, e: dict) -> ProcessedItem:
+    return ProcessedItem(
         source_item=item,
         summary=e.get("summary", ""),
         impact=e.get("impact", ""),
@@ -118,6 +127,21 @@ def draft_to(draft: dict) -> tuple[ChangeItem, ProcessedItem, bool]:
         kbv_change_required=bool(e.get("kbv_change_required")),
         confluence_title=e.get("confluence_title", ""),
     )
+
+
+def draft_from(item: ChangeItem, processed: ProcessedItem, make_page: bool) -> dict:
+    return {
+        "key": item.dedupe_key(),
+        "source": source_dict(item),
+        "edit": edit_dict(processed),
+        "make_page": make_page,
+        "ignored": False,
+    }
+
+
+def draft_to(draft: dict) -> tuple[ChangeItem, ProcessedItem, bool]:
+    item = item_from_source(draft["source"])
+    processed = processed_from_edit(item, draft["edit"])
     return item, processed, bool(draft.get("make_page", False))
 
 
