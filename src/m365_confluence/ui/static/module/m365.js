@@ -98,7 +98,12 @@
     const el = $("list");
     const visible = drafts.map((it, i) => [it, i]).filter(([it]) => !(hide && it.ignored) && passesFilters(it));
     if (!visible.length) {
-      el.innerHTML = '<div class="module-empty">Keine Einträge (Filter prüfen). Sonst erst Entwürfe erzeugen: <code>make review</code></div>';
+      // No drafts at all → offer the on-page generate action (the web UI's
+      // equivalent of `make review`). Drafts present but filtered out → hint at
+      // the filters instead.
+      el.innerHTML = drafts.length
+        ? '<div class="module-empty">Keine Einträge — Filter prüfen.</div>'
+        : '<div class="module-empty">Noch keine Entwürfe. <button class="bp" onclick="M365.generate()">Entwürfe erzeugen (KI)</button></div>';
       return;
     }
     el.innerHTML = visible.map(([it, i]) => {
