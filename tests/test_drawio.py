@@ -55,3 +55,24 @@ def test_timeline_rows_by_service():
     xml = build_timeline(items, axis="quarter", rows="service")
     assert "Exchange Online" in xml
     assert "Teams" in xml
+
+
+def test_timeline_is_wellformed_xml():
+    import xml.etree.ElementTree as ET
+
+    items = [
+        _s(
+            "a",
+            'Title with <tag> & "quotes"',
+            "Teams",
+            "Q3 2026",
+            decision="Deactivate",
+            slipped=True,
+        ),
+        _s("b", "Outlook thing", "Outlook", "Q4 2026"),
+    ]
+    for axis in ("quarter", "month"):
+        for rows in ("service", "product"):
+            xml = build_timeline(items, axis=axis, rows=rows)
+            ET.fromstring(xml)  # raises if not well-formed
+    assert "<i>" not in build_timeline(items)  # markup is escaped in attributes
