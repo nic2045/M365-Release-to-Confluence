@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.2.2...v1.3.0) (2026-05-24)
+
+
+### Features
+
+* fetch-once catalog with on-demand AI enrichment + debug UI ([#15](https://github.com/nic2045/M365-Release-to-Confluence/issues/15)) ([63fe6fe](https://github.com/nic2045/M365-Release-to-Confluence/commit/63fe6fe2829311de0e1185bbda01c2d51c38e030))
+
 ## [1.2.2](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.2.1...v1.2.2) (2026-05-24)
 
 
