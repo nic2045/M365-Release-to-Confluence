@@ -24,22 +24,28 @@ def _publish(xml: str, title_prefix: str) -> str:
     config = Config.load(use_message_center=False, use_roadmap=False)
     client = ConfluenceClient(config.confluence)
     title = f"{title_prefix}Roadmap Timeline"
-    # The draw.io for Confluence app renders an attached diagram whose attachment
-    # name equals the macro's diagramName (no file extension). Attach the mxfile
-    # under that exact name, and also keep a downloadable .drawio copy.
+    data = xml.encode("utf-8")
+
+    # 1) Create/find the page to learn its id, 2) attach the diagram under the
+    # exact name the draw.io macro resolves (== diagramName, no extension), then
+    # 3) write the macro body referencing that page via contentId.
+    page = client.upsert_page(title, "<p>Diagramm wird erzeugt…</p>")
+    page_id = str(page.get("id", ""))
+    client.attach_file(page_id, _DIAGRAM_NAME, data)  # for the macro
+    client.attach_file(page_id, f"{_DIAGRAM_NAME}.drawio", data)  # downloadable copy
+
     body = (
         "<p>Automatisch generiert – nicht manuell bearbeiten.</p>"
         '<ac:structured-macro ac:name="drawio">'
         f'<ac:parameter ac:name="diagramName">{_DIAGRAM_NAME}</ac:parameter>'
+        f'<ac:parameter ac:name="contentId">{page_id}</ac:parameter>'
+        f'<ac:parameter ac:name="baseUrl">{config.confluence.base_url}</ac:parameter>'
+        '<ac:parameter ac:name="revision">1</ac:parameter>'
         "</ac:structured-macro>"
         "<p>Download: "
         f'<ac:link><ri:attachment ri:filename="{_DIAGRAM_NAME}.drawio"/></ac:link></p>'
     )
-    page = client.upsert_page(title, body)
-    page_id = str(page.get("id", ""))
-    data = xml.encode("utf-8")
-    client.attach_file(page_id, _DIAGRAM_NAME, data)  # name == diagramName (for the macro)
-    client.attach_file(page_id, f"{_DIAGRAM_NAME}.drawio", data)  # downloadable copy
+    client.upsert_page(title, body)
     return title
 
 
