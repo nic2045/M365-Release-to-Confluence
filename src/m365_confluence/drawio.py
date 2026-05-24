@@ -38,6 +38,8 @@ _DEC_HEX = {
     "Deactivate": ("#fde0e0", "#b42318"),
 }
 
+_HEADER_STYLE = "rounded=0;fillColor=#0a84ff;fontColor=#ffffff;fontStyle=1;html=1;whiteSpace=wrap;"
+
 # Layout (pixels)
 _ROW_HDR_W = 180
 _COL_W = 210
@@ -110,7 +112,30 @@ def _cell(cid: str, value: str, style: str, x: int, y: int, w: int, h: int) -> s
     )
 
 
-def build_timeline(states: list[ItemState], axis: str = "quarter", rows: str = "service") -> str:
+def _edge(cid: str, source: str, target: str, style: str) -> str:
+    return (
+        f'<mxCell id="{cid}" style="{style}" edge="1" parent="1" '
+        f'source="{source}" target="{target}"><mxGeometry relative="1" as="geometry"/></mxCell>'
+    )
+
+
+def _wrap(body: str) -> str:
+    return (
+        '<mxfile><diagram name="Roadmap">'
+        '<mxGraphModel dx="1200" dy="800" grid="0" gridSize="10" guides="1" '
+        'tooltips="1" connect="0" arrows="0" fold="0" page="1" pageScale="1" '
+        'math="0" shadow="0"><root>'
+        '<mxCell id="0"/><mxCell id="1" parent="0"/>'
+        f"{body}"
+        "</root></mxGraphModel></diagram></mxfile>"
+    )
+
+
+def build_timeline(
+    states: list[ItemState], axis: str = "quarter", rows: str = "service", style: str = "grid"
+) -> str:
+    if style == "fishbone":
+        return _build_fishbone(states, axis, rows)
     products = sorted(
         {p for s in states for p in _rows_of(s, rows)},
         key=lambda p: (p in (NO_PRODUCT, "Sonstiges"), p.lower()),
@@ -168,12 +193,77 @@ def build_timeline(states: list[ItemState], axis: str = "quarter", rows: str = "
 
     cells.append(_cell("title", "M365 Roadmap Timeline", header, 0, 0, _ROW_HDR_W, _TITLE_H))
     body = "".join(cells)
-    return (
-        '<mxfile><diagram name="Roadmap">'
-        '<mxGraphModel dx="1200" dy="800" grid="0" gridSize="10" guides="1" '
-        'tooltips="1" connect="0" arrows="0" fold="0" page="1" pageScale="1" '
-        'math="0" shadow="0"><root>'
-        '<mxCell id="0"/><mxCell id="1" parent="0"/>'
-        f"{body}"
-        "</root></mxGraphModel></diagram></mxfile>"
+    return _wrap(body)
+
+
+def _build_fishbone(states: list[ItemState], axis: str, rows: str) -> str:
+    """Fishbone/Ishikawa layout: a horizontal time spine with diagonal feature bones."""
+    columns = [c for c in _columns(states, axis)]
+    grid: dict[str, list[ItemState]] = {}
+    for s in states:
+        grid.setdefault(_bucket(s, axis), []).append(s)
+
+    w, h = 190, 44
+    qstep = 320
+    bone_dy = 64
+    per_side = max((len(grid.get(c, [])) + 1) // 2 for c in columns) if columns else 1
+    mid_y = 80 + per_side * bone_dy
+    x0 = 60
+
+    cells: list[str] = []
+    spine = "endArrow=classic;html=1;strokeColor=#0a84ff;strokeWidth=3;"
+    bone = "endArrow=none;html=1;strokeColor=#9aa4b2;"
+
+    n = len(columns)
+    spine_x_end = x0 + n * qstep + 40
+    # Spine head (the "fish head" = future) on the right.
+    cells.append(_cell("head", "M365 Roadmap →", _HEADER_STYLE, spine_x_end, mid_y - 24, 150, 48))
+    # Spine line from a left anchor to the head.
+    cells.append(
+        _cell("spine0", "", "fillColor=none;strokeColor=none;html=1;", x0 - 30, mid_y, 1, 1)
     )
+    cells.append(_edge("spine", "spine0", "head", spine))
+
+    for qi, col in enumerate(columns):
+        qx = x0 + qi * qstep
+        node_id = f"q{qi}"
+        cells.append(
+            _cell(
+                node_id,
+                _esc(col),
+                "rounded=1;fillColor=#eef1f5;html=1;fontStyle=1;",
+                qx,
+                mid_y - 16,
+                110,
+                32,
+            )
+        )
+        items = grid.get(col, [])
+        up = down = 0
+        for k, s in enumerate(items):
+            fill, stroke = _DEC_HEX.get(s.decision, ("#eeeeee", "#888888"))
+            box_style = (
+                f"rounded=1;whiteSpace=wrap;html=1;fillColor={fill};strokeColor={stroke};"
+                "align=left;verticalAlign=top;spacing=4;"
+            )
+            title = s.title if len(s.title) <= 60 else s.title[:59] + "…"
+            slip = " ⚠" if s.slipped else ""
+            svc = services_for(s.products)
+            sub = svc[0] if svc else ""
+            value = f"{_esc(title)}{slip}&#10;&lt;i&gt;{_esc(sub)}&lt;/i&gt;"
+            if k % 2 == 0:  # above the spine
+                up += 1
+                by = mid_y - up * bone_dy - h
+                bx = qx - w - 20
+            else:  # below the spine
+                down += 1
+                by = mid_y + down * bone_dy
+                bx = qx - w - 20
+            box_id = f"f{qi}_{k}"
+            cells.append(_cell(box_id, value, box_style, bx, by, w, h))
+            cells.append(_edge(f"b{qi}_{k}", box_id, node_id, bone))
+
+    cells.append(
+        _cell("title", "M365 Roadmap Timeline (Fischgräten)", _HEADER_STYLE, x0 - 30, 16, 320, 30)
+    )
+    return _wrap("".join(cells))
