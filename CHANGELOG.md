@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.1.1...v1.2.0) (2026-05-24)
+
+
+### Features
+
+* fishbone (Ishikawa) style for the draw.io timeline ([#8](https://github.com/nic2045/M365-Release-to-Confluence/issues/8)) ([3d3e272](https://github.com/nic2045/M365-Release-to-Confluence/commit/3d3e272c6a64e9a3f3638d53098f36c9908e84c7))
+
 ## [1.1.1](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.1.0...v1.1.1) (2026-05-24)
 
 
