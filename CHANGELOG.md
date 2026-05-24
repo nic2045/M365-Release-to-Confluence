@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.2.1...v1.2.2) (2026-05-24)
+
+
+### Bug Fixes
+
+* **ui:** empty state offers a generate button instead of "make review" ([#13](https://github.com/nic2045/M365-Release-to-Confluence/issues/13)) ([19fdb34](https://github.com/nic2045/M365-Release-to-Confluence/commit/19fdb344f7c29b2c4d7fb67f02b33bb803ac3260))
+
 ## [1.2.1](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.2.0...v1.2.1) (2026-05-24)
 
 
