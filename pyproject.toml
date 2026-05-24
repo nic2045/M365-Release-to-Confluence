@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "m365-release-to-confluence"
-version = "1.0.0"
+version = "1.1.0"
 description = "Read current changes and upcoming rollouts from the Microsoft 365 platform, summarise them with an LLM, and publish them to Confluence following your standards."
 readme = "README.md"
 requires-python = ">=3.9"

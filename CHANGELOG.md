@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.0.0...v1.1.0) (2026-05-24)
+
+
+### Features
+
+* **state:** pluggable persistence backends for state + review drafts ([#4](https://github.com/nic2045/M365-Release-to-Confluence/issues/4)) ([13a46e8](https://github.com/nic2045/M365-Release-to-Confluence/commit/13a46e8b0065fb4792d336dc628c60d17804bb93))
+
 ## 1.0.0 (2026-05-23)
 
 
