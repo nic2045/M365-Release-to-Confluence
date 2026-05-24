@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.2.0...v1.2.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* draw.io macro shows latest diagram revision (not the first) ([#11](https://github.com/nic2045/M365-Release-to-Confluence/issues/11)) ([39b2ae5](https://github.com/nic2045/M365-Release-to-Confluence/commit/39b2ae5b55fd96ec2c255236f35c648a37316d83))
+
 ## [1.2.0](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.1.1...v1.2.0) (2026-05-24)
 
 

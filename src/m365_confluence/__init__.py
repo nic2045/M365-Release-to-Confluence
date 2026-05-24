@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "1.2.0"  # x-release-please-version
+__version__ = "1.2.1"  # x-release-please-version
 
 from m365_confluence.models import ChangeItem, ProcessedItem
 
