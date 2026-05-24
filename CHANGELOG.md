@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.1.0...v1.1.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* escape label markup in the draw.io timeline (invalid XML) ([#5](https://github.com/nic2045/M365-Release-to-Confluence/issues/5)) ([bc9a60a](https://github.com/nic2045/M365-Release-to-Confluence/commit/bc9a60adca369f4a2bf46e88439e0113590a55a1))
+
 ## [1.1.0](https://github.com/nic2045/M365-Release-to-Confluence/compare/v1.0.0...v1.1.0) (2026-05-24)
 
 
