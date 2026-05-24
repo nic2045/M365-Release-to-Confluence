@@ -76,3 +76,18 @@ def test_timeline_is_wellformed_xml():
             xml = build_timeline(items, axis=axis, rows=rows)
             ET.fromstring(xml)  # raises if not well-formed
     assert "<i>" not in build_timeline(items)  # markup is escaped in attributes
+
+
+def test_fishbone_is_wellformed_and_has_spine():
+    import xml.etree.ElementTree as ET
+
+    items = [
+        _s("a", "Outlook feat", "Outlook", "Q3 2026", decision="Communicate"),
+        _s("b", "Teams feat", "Microsoft Teams", "Q3 2026", decision="Activate"),
+        _s("c", "SP feat", "SharePoint", "Q4 2026", decision="Deactivate", slipped=True),
+    ]
+    xml = build_timeline(items, axis="quarter", style="fishbone")
+    ET.fromstring(xml)  # well-formed
+    assert 'edge="1"' in xml  # bones/spine are edges
+    assert "Roadmap" in xml
+    assert "Q3 2026" in xml

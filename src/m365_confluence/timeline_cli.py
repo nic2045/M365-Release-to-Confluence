@@ -24,19 +24,28 @@ def _publish(xml: str, title_prefix: str) -> str:
     config = Config.load(use_message_center=False, use_roadmap=False)
     client = ConfluenceClient(config.confluence)
     title = f"{title_prefix}Roadmap Timeline"
-    filename = f"{_DIAGRAM_NAME}.drawio"
-    # draw.io for Confluence renders an attached diagram referenced by name.
+    data = xml.encode("utf-8")
+
+    # 1) Create/find the page to learn its id, 2) attach the diagram under the
+    # exact name the draw.io macro resolves (== diagramName, no extension), then
+    # 3) write the macro body referencing that page via contentId.
+    page = client.upsert_page(title, "<p>Diagramm wird erzeugt…</p>")
+    page_id = str(page.get("id", ""))
+    client.attach_file(page_id, _DIAGRAM_NAME, data)  # for the macro
+    client.attach_file(page_id, f"{_DIAGRAM_NAME}.drawio", data)  # downloadable copy
+
     body = (
         "<p>Automatisch generiert – nicht manuell bearbeiten.</p>"
         '<ac:structured-macro ac:name="drawio">'
         f'<ac:parameter ac:name="diagramName">{_DIAGRAM_NAME}</ac:parameter>'
-        '<ac:parameter ac:name="format">drawio</ac:parameter>'
+        f'<ac:parameter ac:name="contentId">{page_id}</ac:parameter>'
+        f'<ac:parameter ac:name="baseUrl">{config.confluence.base_url}</ac:parameter>'
+        '<ac:parameter ac:name="revision">1</ac:parameter>'
         "</ac:structured-macro>"
-        f'<p><ac:link><ri:attachment ri:filename="{filename}"/></ac:link></p>'
+        "<p>Download: "
+        f'<ac:link><ri:attachment ri:filename="{_DIAGRAM_NAME}.drawio"/></ac:link></p>'
     )
-    page = client.upsert_page(title, body)
-    page_id = str(page.get("id", ""))
-    client.attach_file(page_id, filename, xml.encode("utf-8"))
+    client.upsert_page(title, body)
     return title
 
 
@@ -48,6 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--state-file", default="m365_state.json")
     parser.add_argument("--axis", choices=["quarter", "month"], default="quarter")
     parser.add_argument("--rows", choices=["service", "product"], default="service")
+    parser.add_argument("--style", choices=["grid", "fishbone"], default="grid")
     parser.add_argument("--out", default="roadmap.drawio", help="Output .drawio file path.")
     parser.add_argument("--publish", action="store_true", help="Also publish/embed in Confluence.")
     parser.add_argument("--title-prefix", default="[M365] ")
@@ -58,9 +68,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"No items in {args.state_file}. Run a fetch first.", file=sys.stderr)
         return 1
 
-    xml = build_timeline(states, axis=args.axis, rows=args.rows)
+    xml = build_timeline(states, axis=args.axis, rows=args.rows, style=args.style)
     Path(args.out).write_text(xml, encoding="utf-8")
-    print(f"Wrote {args.out} ({len(states)} items, axis={args.axis}, rows={args.rows}).")
+    print(
+        f"Wrote {args.out} ({len(states)} items, style={args.style}, "
+        f"axis={args.axis}, rows={args.rows})."
+    )
 
     if args.publish:
         try:
