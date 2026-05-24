@@ -197,73 +197,70 @@ def build_timeline(
 
 
 def _build_fishbone(states: list[ItemState], axis: str, rows: str) -> str:
-    """Fishbone/Ishikawa layout: a horizontal time spine with diagonal feature bones."""
-    columns = [c for c in _columns(states, axis)]
+    """Fishbone/Ishikawa layout.
+
+    A horizontal time spine (arrow head = future, right). Each quarter is a
+    diagonal main bone, alternating above/below the spine, with the quarter label
+    at its tip; the quarter's features hang off the bone as a diagonal chain of
+    twig boxes, coloured by decision.
+    """
+    columns = list(_columns(states, axis))
     grid: dict[str, list[ItemState]] = {}
     for s in states:
         grid.setdefault(_bucket(s, axis), []).append(s)
 
-    w, h = 190, 44
-    qstep = 320
-    bone_dy = 64
-    per_side = max((len(grid.get(c, [])) + 1) // 2 for c in columns) if columns else 1
-    mid_y = 80 + per_side * bone_dy
+    w, h = 180, 42
+    span = 300  # horizontal distance between quarter bones
+    first = 70  # offset of the quarter label from the spine
+    step_y = h + 16  # vertical distance between stacked twig boxes
+    dx = 26  # horizontal slant per step (gives the diagonal bone look)
     x0 = 60
 
+    # Vertical room needed on the busier side determines the spine's y.
+    up_max = max((len(grid.get(c, [])) for i, c in enumerate(columns) if i % 2 == 0), default=0)
+    mid_y = 70 + first + (up_max + 1) * step_y
+
     cells: list[str] = []
-    spine = "endArrow=classic;html=1;strokeColor=#0a84ff;strokeWidth=3;"
-    bone = "endArrow=none;html=1;strokeColor=#9aa4b2;"
+    spine_style = "endArrow=classic;html=1;strokeColor=#0a84ff;strokeWidth=3;"
+    bone_style = "endArrow=none;html=1;strokeColor=#9aa4b2;"
+    qlabel_style = "rounded=1;html=1;fontStyle=1;fillColor=#0a84ff;fontColor=#ffffff;"
+    invisible = "fillColor=none;strokeColor=none;html=1;"
 
     n = len(columns)
-    spine_x_end = x0 + n * qstep + 40
-    # Spine head (the "fish head" = future) on the right.
-    cells.append(_cell("head", "M365 Roadmap →", _HEADER_STYLE, spine_x_end, mid_y - 24, 150, 48))
-    # Spine line from a left anchor to the head.
-    cells.append(
-        _cell("spine0", "", "fillColor=none;strokeColor=none;html=1;", x0 - 30, mid_y, 1, 1)
-    )
-    cells.append(_edge("spine", "spine0", "head", spine))
+    spine_end_x = x0 + (n + 1) * span
+    cells.append(_cell("sp_l", "", invisible, x0, mid_y, 1, 1))
+    cells.append(_cell("head", "M365 Roadmap →", _HEADER_STYLE, spine_end_x, mid_y - 26, 160, 52))
+    cells.append(_edge("spine", "sp_l", "head", spine_style))
 
     for qi, col in enumerate(columns):
-        qx = x0 + qi * qstep
-        node_id = f"q{qi}"
-        cells.append(
-            _cell(
-                node_id,
-                _esc(col),
-                "rounded=1;fillColor=#eef1f5;html=1;fontStyle=1;",
-                qx,
-                mid_y - 16,
-                110,
-                32,
-            )
-        )
-        items = grid.get(col, [])
-        up = down = 0
-        for k, s in enumerate(items):
+        qx = x0 + (qi + 1) * span
+        up = qi % 2 == 0
+        # Anchor on the spine where this bone meets it.
+        anchor = f"sp{qi}"
+        cells.append(_cell(anchor, "", invisible, qx, mid_y, 1, 1))
+
+        # level 0 = quarter label, levels 1..n = feature twigs (chained outward).
+        entries: list[tuple[str, str, str]] = [(f"q{qi}", _esc(col), qlabel_style)]
+        for k, s in enumerate(grid.get(col, [])):
             fill, stroke = _DEC_HEX.get(s.decision, ("#eeeeee", "#888888"))
-            box_style = (
+            style = (
                 f"rounded=1;whiteSpace=wrap;html=1;fillColor={fill};strokeColor={stroke};"
                 "align=left;verticalAlign=top;spacing=4;"
             )
-            title = s.title if len(s.title) <= 60 else s.title[:59] + "…"
+            title = s.title if len(s.title) <= 58 else s.title[:57] + "…"
             slip = " ⚠" if s.slipped else ""
             svc = services_for(s.products)
             sub = svc[0] if svc else ""
             value = f"{_esc(title)}{slip}&#10;&lt;i&gt;{_esc(sub)}&lt;/i&gt;"
-            if k % 2 == 0:  # above the spine
-                up += 1
-                by = mid_y - up * bone_dy - h
-                bx = qx - w - 20
-            else:  # below the spine
-                down += 1
-                by = mid_y + down * bone_dy
-                bx = qx - w - 20
-            box_id = f"f{qi}_{k}"
-            cells.append(_cell(box_id, value, box_style, bx, by, w, h))
-            cells.append(_edge(f"b{qi}_{k}", box_id, node_id, bone))
+            entries.append((f"f{qi}_{k}", value, style))
 
-    cells.append(
-        _cell("title", "M365 Roadmap Timeline (Fischgräten)", _HEADER_STYLE, x0 - 30, 16, 320, 30)
-    )
+        prev = anchor
+        for level, (cid, value, style) in enumerate(entries):
+            bx = qx - 70 - level * dx
+            by = mid_y - first - level * step_y - h if up else mid_y + first + level * step_y
+            cells.append(_cell(cid, value, style, bx, by, w, h))
+            cells.append(_edge(f"e_{cid}", prev, cid, bone_style))
+            prev = cid
+
+    cells.append(_cell("title", "M365 Roadmap (Fischgräten)", _HEADER_STYLE, x0, 16, 320, 30))
     return _wrap("".join(cells))
