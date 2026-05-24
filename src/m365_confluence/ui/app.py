@@ -299,7 +299,5 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Review UI on http://{args.host}:{args.port}  (file: {args.review_file})")
     print(f"Debug UI on  http://{args.host}:{args.port}/debug")
-    uvicorn.run(
-        create_app(args.review_file, args.catalog_file), host=args.host, port=args.port
-    )
+    uvicorn.run(create_app(args.review_file, args.catalog_file), host=args.host, port=args.port)
     return 0

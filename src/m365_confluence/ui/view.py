@@ -99,10 +99,7 @@ def render_module_html(*, asset_base: str = "/m365-assets", api_base: str = "/ap
 def _esc(value: object) -> str:
     text = "" if value is None else str(value)
     return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
+        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
     )
 
 
@@ -173,7 +170,7 @@ def render_debug_html(rows: list[dict], synced_at: str) -> str:
         else:
             pub = '<span class="nopub">—</span>'
         body_rows.append(
-            "<tr class=\"{cls}\">"
+            '<tr class="{cls}">'
             "<td>{src}<br><code>{id}</code></td><td>{title}</td><td>{status}</td><td>{q}</td>"
             "<td>{created}</td><td>{modified}</td><td>{first}</td><td>{last}</td>"
             "<td>{diff}</td><td>{ki}</td><td>{pub}</td><td>{ctitle}</td></tr>".format(

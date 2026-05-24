@@ -199,9 +199,7 @@ def enrich_catalog(
         item = item_from_source(entry["source"])
         log.info("[%d/%d] Enriching %s ...", index, total, key)
         try:
-            result = process_item(
-                provider, item, config.ai.output_language, config.ai.org_context
-            )
+            result = process_item(provider, item, config.ai.output_language, config.ai.org_context)
         except Exception as exc:  # noqa: BLE001 - surface per-item, abort on fatal
             errors.append((key, str(exc)))
             if _is_fatal_provider_error(exc):

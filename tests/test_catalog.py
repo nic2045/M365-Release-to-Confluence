@@ -62,9 +62,7 @@ def test_sync_labels_service_and_quarter(tmp_path, monkeypatch):
     import m365_confluence.pipeline as pipeline
 
     path = str(tmp_path / "cat.json")
-    monkeypatch.setattr(
-        pipeline, "collect", lambda config: [[_item(products=["Outlook"])]]
-    )
+    monkeypatch.setattr(pipeline, "collect", lambda config: [[_item(products=["Outlook"])]])
     sync_catalog(_Cfg(), catalog_file=path)
     cat = Catalog(path).load()
     entry = next(iter(cat.items.values()))
@@ -128,8 +126,15 @@ def test_publish_catalog_only_enriched_non_ignored(tmp_path, monkeypatch):
         from m365_confluence.pipeline import RunResult
 
         return RunResult(
-            fetched=len(drafts), processed=len(drafts), published=len(drafts),
-            skipped=0, unchanged=0, slipped=0, new=0, changed=0, dashboards=0,
+            fetched=len(drafts),
+            processed=len(drafts),
+            published=len(drafts),
+            skipped=0,
+            unchanged=0,
+            slipped=0,
+            new=0,
+            changed=0,
+            dashboards=0,
         )
 
     monkeypatch.setattr(pipeline, "publish_drafts", fake_publish_drafts)
