@@ -111,6 +111,77 @@ def test_generate_endpoint(tmp_path, monkeypatch):
     assert r.json()["count"] == 1
 
 
+def test_catalog_empty_then_sync_then_get(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    import m365_confluence.pipeline as pipeline
+    from m365_confluence.models import ChangeItem
+
+    path = tmp_path / "review.json"
+    client = TestClient(create_app(str(path)))
+
+    assert client.get("/api/catalog").json()["items"] == []
+
+    item = ChangeItem(
+        id="9",
+        source="roadmap",
+        title="Catalog item",
+        body="b",
+        products=["Teams"],
+        last_modified=datetime(2026, 5, 1, tzinfo=timezone.utc),
+    )
+    monkeypatch.setattr(pipeline, "collect", lambda config: [[item]])
+    r = client.post("/api/sync", json={"source": "roadmap"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["new"] == 1 and body["total"] == 1
+    assert body["items"][0]["source"]["title"] == "Catalog item"
+    assert body["items"][0]["enriched"] is False
+
+    again = client.get("/api/catalog").json()
+    assert len(again["items"]) == 1
+
+
+def test_catalog_save_persists_edits(tmp_path, monkeypatch):
+    import m365_confluence.pipeline as pipeline
+    from m365_confluence.models import ChangeItem
+
+    path = tmp_path / "review.json"
+    client = TestClient(create_app(str(path)))
+    item = ChangeItem(id="9", source="roadmap", title="T", body="b")
+    monkeypatch.setattr(pipeline, "collect", lambda config: [[item]])
+    client.post("/api/sync", json={"source": "roadmap"})
+
+    save = client.post(
+        "/api/catalog",
+        json={"items": [{"key": "roadmap:9", "ignored": True, "make_page": True, "edit": None}]},
+    )
+    assert save.json()["saved"] == 1
+    entry = client.get("/api/catalog").json()["items"][0]
+    assert entry["ignored"] is True and entry["make_page"] is True
+
+
+def test_enrich_requires_keys(tmp_path):
+    client = TestClient(create_app(str(tmp_path / "review.json")))
+    r = client.post("/api/enrich", json={"keys": []})
+    assert r.status_code == 400
+
+
+def test_debug_page_renders(tmp_path, monkeypatch):
+    import m365_confluence.pipeline as pipeline
+    from m365_confluence.models import ChangeItem
+
+    path = tmp_path / "review.json"
+    client = TestClient(create_app(str(path)))
+    item = ChangeItem(id="9", source="roadmap", title="DbgItem", body="b")
+    monkeypatch.setattr(pipeline, "collect", lambda config: [[item]])
+    client.post("/api/sync", json={"source": "roadmap"})
+    r = client.get("/debug")
+    assert r.status_code == 200
+    assert "DbgItem" in r.text
+    assert "M365 Debug" in r.text
+
+
 def test_settings_roundtrip(tmp_path):
     client = TestClient(create_app(str(tmp_path / "review.json")))
     assert client.get("/api/settings").json() == {}

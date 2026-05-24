@@ -138,6 +138,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the local changelog file (drives the Changelog page).",
     )
     parser.add_argument(
+        "--catalog-file",
+        default="m365_catalog.json",
+        help="Path to the fetch-once catalog cache (used by --sync/--from-catalog).",
+    )
+    parser.add_argument(
+        "--sync",
+        action="store_true",
+        help="Fetch ALL items once, label them, diff against the catalog and persist "
+        "(no LLM, no Confluence). Meant to run weekly; the UI then browses the cache.",
+    )
+    parser.add_argument(
+        "--from-catalog",
+        action="store_true",
+        help="Publish the enriched, non-ignored catalog entries to Confluence "
+        "(no LLM). Use after enriching selected items in the UI.",
+    )
+    parser.add_argument(
         "--review-out",
         metavar="PATH",
         default=None,
@@ -316,6 +333,56 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Found {len(products)} distinct product(s):")
         for name, count in products:
             print(f"  {count:5d}  {name}")
+        return 0
+
+    if args.sync:
+        from m365_confluence.catalog import sync_catalog
+
+        try:
+            config = Config.load(
+                use_message_center=use_message_center,
+                use_roadmap=use_roadmap,
+                require_confluence=False,
+            )
+            result = sync_catalog(
+                config, catalog_file=args.catalog_file, since_days=args.since_days
+            )
+        except ConfigError as exc:
+            print(f"Configuration error: {exc}", file=sys.stderr)
+            return 2
+        print(
+            f"Sync done. total={result.total} new={result.new} changed={result.changed} "
+            f"unchanged={result.unchanged} removed={result.removed} "
+            f"(catalog: {args.catalog_file}, nothing published).",
+            file=sys.stderr,
+        )
+        return 0
+
+    if args.from_catalog:
+        from m365_confluence.catalog import publish_catalog
+
+        try:
+            config = Config.load(
+                use_message_center=False,
+                use_roadmap=False,
+                require_confluence=not args.dry_run,
+            )
+            result = publish_catalog(
+                config,
+                catalog_file=args.catalog_file,
+                dry_run=args.dry_run,
+                group_by=args.group_by,
+                title_prefix=args.title_prefix,
+                state_file=args.state_file,
+                changelog_file=args.changelog_file,
+            )
+        except ConfigError as exc:
+            print(f"Configuration error: {exc}", file=sys.stderr)
+            return 2
+        print(
+            f"Published from catalog: pages={result.published} dashboards={result.dashboards}.",
+            file=sys.stderr,
+        )
         return 0
 
     if args.from_review:

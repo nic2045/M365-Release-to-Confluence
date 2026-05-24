@@ -125,6 +125,31 @@ m365-to-confluence --from-review review.json
 The UI lets you edit title, target quarter, decision, CAB flag/recommendation, summary,
 impact and recommended action per item, then **Save** and **Publish** (with a dry-run toggle).
 
+## Catalog: fetch once, enrich on demand
+
+To avoid re-fetching and re-paying the LLM on every run, the tool keeps a local
+**catalog** (`m365_catalog.json`) — a fetch-once cache of *every* item with
+deterministic labels (service, product, target quarter, change-type). The expensive
+LLM step runs only for the items you actually select.
+
+```bash
+# 1. Sync: fetch ALL items once, label them, diff vs the catalog (no LLM, no creds).
+#    Meant to run weekly; new/changed/removed items are flagged for the UI.
+m365-to-confluence --sync --source both
+
+# 2. Browse & enrich in the UI: filter by service/product, tick the items you want,
+#    then "Auswahl anreichern (KI)" runs the LLM only for those (cached afterwards).
+m365-to-confluence-ui --review-file review.json   # http://127.0.0.1:8765
+
+# 3. Publish the enriched, non-ignored entries (no LLM call).
+m365-to-confluence --from-catalog --approve
+```
+
+The flow is **load → label → filter → select → enrich → publish**: stages 1–2 cost no
+tokens, and the AI translation/impact is generated only after selection. A **Debug** view
+(`/debug`) lists every item as delivered by Microsoft with its lifecycle — created,
+updated, downloaded (synced), whether/when published, and the target quarter.
+
 ## Configuration
 
 All configuration is via environment variables (see `.env.example`):

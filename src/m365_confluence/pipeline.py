@@ -382,6 +382,33 @@ def run_from_review(
         drafts = load_drafts(review_file)
     else:
         raise ValueError("run_from_review requires a review_file or a drafts_backend")
+    return publish_drafts(
+        config,
+        drafts,
+        dry_run=dry_run,
+        group_by=group_by,
+        title_prefix=title_prefix,
+        state_file=state_file,
+        changelog_file=changelog_file,
+        state=state,
+    )
+
+
+def publish_drafts(
+    config: Config,
+    drafts: list[dict],
+    *,
+    dry_run: bool = False,
+    group_by: str = "service",
+    title_prefix: str = "[M365] ",
+    state_file: str = "m365_state.json",
+    changelog_file: str = "m365_changelog.json",
+    state: StateStore | None = None,
+) -> RunResult:
+    """Publish a list of edited drafts (review.json shape) without the LLM.
+
+    Shared by ``run_from_review`` and the catalog publish flow.
+    """
     state = (state if state is not None else StateStore(state_file)).load()
     confluence = None if dry_run else build_confluence(config.confluence)
 
@@ -407,7 +434,7 @@ def run_from_review(
             slipped += 1
         prepared.append((item, result, make_page))
 
-    log.info("From review: %d to publish, %d ignored", len(prepared), ignored)
+    log.info("Publishing drafts: %d to publish, %d ignored", len(prepared), ignored)
     published = _publish_prepared(prepared, state, confluence)
     dashboards = _publish_dashboards(state, confluence, title_prefix, dry_run, group_by)
     _update_changelog(
